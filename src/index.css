@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Force the app to use the whole screen */
+  #root {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    max-width: none; /* This kills the 1280px limit */
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    display: block; /* Removes Vite's centering */
+    width: 100%;
+    min-height: 100vh;
+  }
+}
