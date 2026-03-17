@@ -52,6 +52,8 @@ const SUBJECTS = [
   },
 ];
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
 const MainPortal = ({ userContext, onLogout }: Props) => {
   const [currentDegree, setCurrentDegree] = useState("B.Ed - TNTEU");
   const [mode, setMode] = useState<"learn" | "exam" | "activity" | "grammar">(
@@ -209,7 +211,7 @@ const MainPortal = ({ userContext, onLogout }: Props) => {
     stopSpeaking();
 
     // 1. Dynamic endpoint based on mode
-    let endpoint = `http://localhost:3001/api/${mode}`;
+    let endpoint = `${API_BASE_URL}/${mode}`;
 
     // 2. Prepare the Body with Logging Data
     const bodyData = {

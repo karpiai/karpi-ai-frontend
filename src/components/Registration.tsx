@@ -11,6 +11,8 @@ interface Props {
   onRegisterSuccess: (userData: any) => void;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
 const Registration = ({ onRegisterSuccess }: Props) => {
   const [regData, setRegData] = useState({
     name: "",
@@ -24,7 +26,7 @@ const Registration = ({ onRegisterSuccess }: Props) => {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3001/api/register", {
+      const res = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(regData),

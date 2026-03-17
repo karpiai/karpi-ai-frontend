@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { Users, LayoutDashboard, Activity, School, ArrowLeft, TrendingUp } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +14,7 @@ const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
 
     const fetchStats = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/admin/stats", {
+        const response = await fetch(`${API_BASE_URL}/admin/stats`, {
           signal: controller.signal 
         });
         const data = await response.json();
