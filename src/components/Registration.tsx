@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
+import karpiLogo from "../assets/logo.png";
 
 interface Props {
   onRegisterSuccess: (userData: any) => void;
@@ -61,7 +62,7 @@ const Registration = ({ onRegisterSuccess }: Props) => {
         <div className="bg-gradient-to-r from-[#0b1f38] to-[#132f50] p-8 text-center border-b border-cyan-500/30">
           <div className="bg-white p-3 rounded-2xl inline-block mb-4 shadow-lg">
             <img
-              src="../src/assets/logo.png"
+              src={karpiLogo}
               alt="Karpi Logo"
               className="h-30 w-auto"
             />
