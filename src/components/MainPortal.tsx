@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
+import karpilogo from "../assets/logo.png";
 
 interface Props {
   userContext: { name: string; collegeName: string; rollNo: string };
@@ -276,7 +277,7 @@ const MainPortal = ({ userContext, onLogout }: Props) => {
           <div className="flex items-center gap-4">
             <div className="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center shrink-0">
               <img
-                src="../src/assets/logo.png"
+                src={karpilogo}
                 alt="Karpi AI Logo"
                 className="h-12 w-auto object-contain"
               />
