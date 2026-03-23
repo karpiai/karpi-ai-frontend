@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // 1. Import useNavigate
 import { Users, LayoutDashboard, Activity, School, ArrowLeft, TrendingUp } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
+// 2. Remove the { goBack } prop from the component signature
+const AdminDashboard = () => {
+  const navigate = useNavigate(); // 3. Initialize the navigation hook
+  
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // AbortController prevents the "double fire" from causing issues
     const controller = new AbortController();
 
     const fetchStats = async () => {
@@ -29,10 +32,9 @@ const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
     };
 
     fetchStats();
-    return () => controller.abort(); // Cleanup on unmount
+    return () => controller.abort(); 
   }, []);
 
-  // Dynamic Totals based on real database data
   const totalInstitutions = stats.length;
   const totalRequests = stats.reduce((acc, curr) => acc + curr.requests, 0);
   const totalStudents = stats.reduce((acc, curr) => acc + (curr.students || 0), 0);
@@ -48,7 +50,11 @@ const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
       {/* Header */}
       <div className="max-w-6xl mx-auto flex justify-between items-center mb-10">
         <div className="flex items-center gap-4">
-          <button onClick={goBack} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+          {/* 4. Update the onClick handler to use navigate() */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+          >
             <ArrowLeft />
           </button>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -62,7 +68,6 @@ const AdminDashboard = ({ goBack }: { goBack: () => void }) => {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <MetricCard icon={<School />} title="Institutions" value={totalInstitutions} color="blue" />
-        {/* Note: Student count will show 0 until we add the .count() logic to backend */}
         <MetricCard icon={<Users />} title="Total Students" value={totalStudents} color="purple" />
         <MetricCard icon={<Activity />} title="AI Queries" value={totalRequests} color="cyan" />
       </div>

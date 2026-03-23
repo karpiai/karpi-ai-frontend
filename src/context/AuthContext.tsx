@@ -1,0 +1,58 @@
+import { createContext, useState, useContext, useEffect, type ReactNode } from 'react';
+
+// Define the exact shape of your SaaS Student Profile
+export interface StudentProfile {
+  id: string;
+  name: string;
+  rollNo: string;
+  department: string; 
+  semester: number;
+  collegeName: string;
+}
+
+interface AuthContextType {
+  student: StudentProfile | null;
+  login: (profile: StudentProfile) => void;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [student, setStudent] = useState<StudentProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Replaces the useEffect from your old App.tsx
+  useEffect(() => {
+    const savedUser = localStorage.getItem("karpi_user");
+    if (savedUser) {
+      setStudent(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const login = (profile: StudentProfile) => {
+    localStorage.setItem("karpi_user", JSON.stringify(profile));
+    setStudent(profile);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("karpi_user");
+    setStudent(null);
+  };
+
+  // Don't render routes until we've checked local storage
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <AuthContext.Provider value={{ student, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
+};

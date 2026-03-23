@@ -24,11 +24,7 @@ import {
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import karpilogo from "../assets/logo.png";
-
-interface Props {
-  userContext: { name: string; collegeName: string; rollNo: string };
-  onLogout: () => void;
-}
+import { useAuth } from "../context/AuthContext"; // 1. ADD THIS IMPORT
 
 const SUBJECTS = [
   {
@@ -53,10 +49,11 @@ const SUBJECTS = [
   },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-const MainPortal = ({ userContext, onLogout }: Props) => {
-  const [currentDegree, setCurrentDegree] = useState("B.Ed - TNTEU");
+const MainPortal = () => {
+  const { student, logout } = useAuth(); // 4. PULL DATA FROM CONTEXT INSTEAD
   const [mode, setMode] = useState<"learn" | "exam" | "activity" | "grammar">(
     "learn",
   );
@@ -218,9 +215,10 @@ const MainPortal = ({ userContext, onLogout }: Props) => {
     const bodyData = {
       topic: input,
       subjectId: selectedSubject,
-      collegeName: userContext.collegeName, // CRITICAL for usageLogger
-      studentName: userContext.name, // CRITICAL for usageLogger
-      rollNo: userContext.rollNo, // Helpful for tracking
+      collegeName: student?.collegeName,
+      studentName: student?.name,
+      rollNo: student?.rollNo,
+      studentId: student?.id, // CRITICAL: This is what the backend uses to check the Token Quota
     };
 
     try {
@@ -286,13 +284,14 @@ const MainPortal = ({ userContext, onLogout }: Props) => {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">Karpi AI</h1>
                 <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded text-[10px] font-bold uppercase tracking-tighter">
-                  {currentDegree}
+                  {student?.department} - Sem {student?.semester}{" "}
+                  {/* Dynamic degree! */}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-cyan-400">
                 <School size={14} className="shrink-0" />
                 <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[180px]">
-                  {userContext.collegeName}
+                  {student?.collegeName} {/* Updated */}
                 </span>
               </div>
             </div>
@@ -328,7 +327,7 @@ const MainPortal = ({ userContext, onLogout }: Props) => {
 
             {/* Logout Button */}
             <button
-              onClick={onLogout}
+              onClick={logout}
               className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 transition-all text-xs font-bold active:scale-95"
             >
               <LogOut size={16} />
