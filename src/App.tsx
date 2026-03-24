@@ -35,7 +35,6 @@ function AppRoutes() {
         path="/portal" 
         element={
           <ProtectedRoute>
-            {/* Notice we no longer need to pass userContext or onLogout as props! */}
             <MainPortal /> 
           </ProtectedRoute>
         } 
