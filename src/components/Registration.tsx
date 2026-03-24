@@ -94,7 +94,7 @@ const Registration = () => {
                 required
                 type="text"
                 className="w-full p-3 bg-white border border-cyan-200 rounded-lg outline-none font-mono text-center tracking-widest uppercase"
-                placeholder="Ex: NAGAI-2026"
+                placeholder="Ex: COLLEGE-NAME-2026"
                 onChange={(e) => setRegData({ ...regData, accessCode: e.target.value })}
               />
             </div>

@@ -1,140 +1,163 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // 1. Import useNavigate
-import { Users, LayoutDashboard, Activity, School, ArrowLeft, TrendingUp } from "lucide-react";
+import React, { useState } from 'react';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
+import { Card } from 'primereact/card';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+interface StudentMetric {
+    rollNumber: string;
+    name: string;
+    department: string;
+    semester: number;
+    wordsUsed: number;
+}
 
-// 2. Remove the { goBack } prop from the component signature
-const AdminDashboard = () => {
-  const navigate = useNavigate(); // 3. Initialize the navigation hook
-  
-  const [stats, setStats] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-  useEffect(() => {
-    const controller = new AbortController();
+const AdminDashboard: React.FC = () => {
+    const [accessCode, setAccessCode] = useState<string>('');
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string>('');
+    
+    const [metrics, setMetrics] = useState<StudentMetric[]>([]);
+    const [institutionName, setInstitutionName] = useState<string>('');
+    const [totalStudents, setTotalStudents] = useState<number>(0);
 
-    const fetchStats = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-          signal: controller.signal 
-        });
-        const data = await response.json();
-        setStats(data);
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error("Dashboard error:", err);
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/metrics`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accessCode })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to authenticate');
+            }
+
+            setInstitutionName(data.institutionName);
+            setTotalStudents(data.totalStudentsRegistered);
+            setMetrics(data.metrics);
+            setIsAuthenticated(true);
+
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.');
+        } finally {
+            setLoading(false);
         }
-      } finally {
-        setLoading(false);
-      }
     };
 
-    fetchStats();
-    return () => controller.abort(); 
-  }, []);
+    // --- VIEW 1: Login Screen (Tailwind Styled) ---
+    if (!isAuthenticated) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+                <Card title="Institutional Admin Access" className="w-full max-w-md shadow-lg rounded-xl">
+                    <form onSubmit={handleLogin} className="flex flex-col gap-4 mt-2">
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="accessCode" className="text-sm font-semibold text-gray-700">
+                                Enter Admin Access Code
+                            </label>
+                            <InputText 
+                                id="accessCode" 
+                                type="password" 
+                                value={accessCode} 
+                                onChange={(e) => setAccessCode(e.target.value)} 
+                                placeholder="e.g. JPE-ADMIN-2026"
+                                className="w-full p-2 border border-gray-300 rounded-md"
+                            />
+                        </div>
+                        
+                        {error && <small className="text-red-500 font-medium">{error}</small>}
+                        
+                        <Button 
+                            label={loading ? "Verifying..." : "Access Dashboard"} 
+                            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-lock-open"} 
+                            disabled={!accessCode || loading} 
+                            type="submit"
+                            className="w-full mt-2 bg-blue-600 hover:bg-blue-700 border-none p-3 font-bold"
+                        />
+                    </form>
+                </Card>
+            </div>
+        );
+    }
 
-  const totalInstitutions = stats.length;
-  const totalRequests = stats.reduce((acc, curr) => acc + curr.requests, 0);
-  const totalStudents = stats.reduce((acc, curr) => acc + (curr.students || 0), 0);
+    // --- VIEW 2: Data Dashboard (Tailwind Styled) ---
+    return (
+        <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-blue-800 m-0">{institutionName}</h1>
+                    <p className="text-gray-600 m-0 mt-1 text-lg">Usage Metrics & Analytics Dashboard</p>
+                </div>
+                
+                <div className="flex gap-4 items-center">
+                    <div className="bg-white p-4 shadow-md rounded-lg border-t-4 border-blue-600 flex items-center gap-4">
+                        <i className="pi pi-users text-blue-600 text-3xl"></i>
+                        <div>
+                            <span className="text-gray-500 font-medium block text-sm mb-1">Total Registered</span>
+                            <div className="text-gray-900 font-bold text-2xl">{totalStudents} Students</div>
+                        </div>
+                    </div>
+                    
+                    <Button 
+                        icon="pi pi-sign-out" 
+                        severity="secondary" 
+                        outlined 
+                        rounded
+                        onClick={() => {
+                            setIsAuthenticated(false);
+                            setMetrics([]);
+                            setInstitutionName('');
+                            setTotalStudents(0);
+                            setAccessCode('');
+                        }} 
+                        tooltip="Secure Log Out"
+                        tooltipOptions={{ position: 'bottom' }}
+                        className="bg-white"
+                    />
+                </div>
+            </div>
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="text-cyan-400 font-mono animate-pulse">Loading Analytics...</div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-8">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto flex justify-between items-center mb-10">
-        <div className="flex items-center gap-4">
-          {/* 4. Update the onClick handler to use navigate() */}
-          <button 
-            onClick={() => navigate("/")} 
-            className="p-2 hover:bg-slate-800 rounded-full transition-colors"
-          >
-            <ArrowLeft />
-          </button>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <LayoutDashboard className="text-cyan-400" /> Karpi SaaS Admin
-          </h1>
+            <Card className="shadow-lg rounded-xl overflow-hidden border-none">
+                <DataTable 
+                    value={metrics} 
+                    paginator 
+                    rows={10} 
+                    rowsPerPageOptions={[10, 25, 50]}
+                    dataKey="rollNumber" 
+                    emptyMessage="No student activity found for this institution."
+                    className="p-datatable-sm"
+                    stripedRows
+                    removableSort
+                >
+                    <Column field="rollNumber" header="Roll Number" sortable style={{ width: '15%' }}></Column>
+                    <Column field="name" header="Student Name" sortable style={{ width: '25%' }}></Column>
+                    <Column field="department" header="Department" sortable style={{ width: '20%' }}></Column>
+                    <Column field="semester" header="Sem" sortable style={{ width: '10%' }} align="center"></Column>
+                    <Column 
+                        field="wordsUsed" 
+                        header="Words Generated" 
+                        sortable 
+                        style={{ width: '30%' }}
+                        body={(rowData) => (
+                            <span className="font-bold text-blue-600">
+                                {rowData.wordsUsed.toLocaleString()} words
+                            </span>
+                        )}
+                    ></Column>
+                </DataTable>
+            </Card>
         </div>
-        <div className="bg-cyan-500/10 border border-cyan-500/30 px-4 py-2 rounded-lg text-cyan-400 font-bold text-sm">
-          Live Trials
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <MetricCard icon={<School />} title="Institutions" value={totalInstitutions} color="blue" />
-        <MetricCard icon={<Users />} title="Total Students" value={totalStudents} color="purple" />
-        <MetricCard icon={<Activity />} title="AI Queries" value={totalRequests} color="cyan" />
-      </div>
-
-      {/* Institution Table */}
-      <div className="max-w-6xl mx-auto bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-          <h2 className="text-xl font-bold">Partner Institutions</h2>
-          <TrendingUp size={20} className="text-cyan-500" />
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-900/50 text-slate-400 text-xs uppercase tracking-widest">
-              <tr>
-                <th className="px-6 py-4 border-b border-slate-700">College Name</th>
-                <th className="px-6 py-4 border-b border-slate-700 text-center">Requests</th>
-                <th className="px-6 py-4 border-b border-slate-700 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700">
-              {stats.map((col, i) => (
-                <tr key={i} className="hover:bg-slate-700/30 transition-colors group">
-                  <td className="px-6 py-5 font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">
-                    {col.name}
-                  </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className="bg-slate-900 px-4 py-1.5 rounded-lg text-sm font-mono border border-slate-700 text-cyan-400 shadow-inner">
-                      {col.requests}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-right">
-                    <span className="px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-[10px] font-bold uppercase tracking-tighter border border-green-500/20">
-                      {col.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {stats.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-6 py-10 text-center text-slate-500 italic">
-                    No active usage data found in Supabase.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
-
-function MetricCard({ icon, title, value, color }: any) {
-  const colorMap: any = {
-    blue: "text-blue-400 border-blue-500/20",
-    purple: "text-purple-400 border-purple-500/20",
-    cyan: "text-cyan-400 border-cyan-500/20",
-  };
-
-  return (
-    <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl hover:border-slate-500 transition-all duration-300">
-      <div className={`text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 ${colorMap[color]}`}>
-        {icon} {title}
-      </div>
-      <div className="text-4xl font-black tabular-nums">{value}</div>
-    </div>
-  );
-}
 
 export default AdminDashboard;
