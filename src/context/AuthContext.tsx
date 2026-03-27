@@ -8,6 +8,7 @@ export interface StudentProfile {
   department: string; 
   semester: number;
   collegeName: string;
+  institutionId: string; // CRITICAL for billing and admin features
 }
 
 interface AuthContextType {
@@ -24,7 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Replaces the useEffect from your old App.tsx
   useEffect(() => {
-    const savedUser = localStorage.getItem("karpi_user");
+    const savedUser = sessionStorage.getItem("karpi_user");
     if (savedUser) {
       setStudent(JSON.parse(savedUser));
     }
@@ -32,12 +33,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = (profile: StudentProfile) => {
-    localStorage.setItem("karpi_user", JSON.stringify(profile));
+    sessionStorage.setItem("karpi_user", JSON.stringify(profile));
     setStudent(profile);
   };
 
   const logout = () => {
-    localStorage.removeItem("karpi_user");
+    sessionStorage.removeItem("karpi_user");
     setStudent(null);
   };
 

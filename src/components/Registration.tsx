@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Import the router hook
 import { useAuth } from "../context/AuthContext"; // Import our global memory
-import { UserPlus, PenTool, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { PenTool, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
 import karpiLogo from "../assets/logo.png";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
@@ -11,7 +11,7 @@ const Registration = () => {
   const navigate = useNavigate(); // Tool to change pages
   const { login } = useAuth();    // Tool to save student session
   
-  const [regData, setRegData] = useState({ name: "", rollNo: "", accessCode: "" });
+  const [regData, setRegData] = useState({ rollNo: "", accessCode: "" });
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -31,6 +31,7 @@ const Registration = () => {
         // Construct the SaaS Profile based on backend response
         const userData = {
           id: data.studentId || "temp-id-replace-me", // CRITICAL for billing
+          institutionId: data.institutionId || "temp-institution-replace-me", // CRITICAL for billing
           name: data.studentName,
           collegeName: data.collegeName,
           rollNo: regData.rollNo,
@@ -61,12 +62,12 @@ const Registration = () => {
             <img src={karpiLogo} alt="Karpi Logo" className="h-30 w-auto" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Student Portal</h2>
-          <p className="text-cyan-400 text-sm font-medium mt-1">Activate Institutional License</p>
+          <p className="text-cyan-400 text-sm font-medium mt-1">Login to Access AI Tools</p>
         </div>
 
         <form onSubmit={handleRegister} className="p-8 space-y-5">
           <div className="space-y-4">
-            <div className="relative">
+            {/* <div className="relative">
               <UserPlus className="absolute left-3 top-3.5 text-slate-400" size={18} />
               <input
                 required
@@ -74,7 +75,7 @@ const Registration = () => {
                 placeholder="Full Name"
                 onChange={(e) => setRegData({ ...regData, name: e.target.value })}
               />
-            </div>
+            </div> */}
 
             <div className="relative">
               <PenTool className="absolute left-3 top-3.5 text-slate-400" size={18} />

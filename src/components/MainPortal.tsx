@@ -25,29 +25,7 @@ import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import karpilogo from "../assets/logo.png";
 import { useAuth } from "../context/AuthContext"; // 1. ADD THIS IMPORT
-
-const SUBJECTS = [
-  {
-    id: "tnteu-sem1-psychology",
-    name: "Educational Psychology",
-    semester: "Sem 1",
-  },
-  {
-    id: "tnteu-sem1-contemporary",
-    name: "Contemporary India",
-    semester: "Sem 1",
-  },
-  {
-    id: "tnteu-sem1-pedagogy-cs",
-    name: "Pedagogy of Comp. Sci",
-    semester: "Sem 1 (Major)",
-  },
-  {
-    id: "tnteu-sem1-ict",
-    name: "ICT in Education",
-    semester: "Sem 1 (Practical)",
-  },
-];
+import { SUBJECTS } from "../util/B.Ed/subjects/sem-1"; // 2. IMPORT SUBJECTS
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001/api";
@@ -214,11 +192,12 @@ const MainPortal = () => {
     // 2. Prepare the Body with Logging Data
     const bodyData = {
       topic: input,
-      subjectId: selectedSubject,
+      subjectId: mode !== "grammar" ? selectedSubject : "",
       collegeName: student?.collegeName,
       studentName: student?.name,
       rollNo: student?.rollNo,
       studentId: student?.id, // CRITICAL: This is what the backend uses to check the Token Quota
+      institutionId: student?.institutionId, // CRITICAL: This is what the backend uses to check the Token Quota
     };
 
     try {
