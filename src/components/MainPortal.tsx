@@ -1,5 +1,5 @@
 import "regenerator-runtime/runtime";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SpeechRecognition, {
@@ -24,24 +24,81 @@ import {
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import karpilogo from "../assets/logo.png";
-import { useAuth } from "../context/AuthContext"; // 1. ADD THIS IMPORT
-import { SUBJECTS } from "../util/B.Ed/subjects/sem-1"; // 2. IMPORT SUBJECTS
+import { useAuth } from "../context/AuthContext";
+// IMPORT YOUR SCALABLE DICTIONARY
+import {
+  SUBJECT_METADATA,
+  DEPARTMENTS,
+  PROGRAMS,
+} from "../util/subjectMetadata";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 const MainPortal = () => {
-  const { student, logout } = useAuth(); // 4. PULL DATA FROM CONTEXT INSTEAD
+  const { student, logout } = useAuth();
   const [mode, setMode] = useState<"learn" | "exam" | "activity" | "grammar">(
     "learn",
   );
-  const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0].id);
+
+  // --- DYNAMIC MEDIUM TOGGLE ---
+  const [selectedMedium, setSelectedMedium] = useState<"English" | "Tamil">(
+    (student?.medium as "English" | "Tamil") || "English",
+  );
+
+  // --- DYNAMIC SUBJECT FILTER ENGINE ---
+  const availableSubjects = useMemo(() => {
+    if (!student) return [];
+    return SUBJECT_METADATA.filter(
+      (sub) =>
+        sub.semester === student.semester &&
+        sub.medium === selectedMedium &&
+        (sub.programId === student.programId ||
+          sub.programId === PROGRAMS.BED) &&
+        (sub.departmentId === DEPARTMENTS.GENERAL ||
+          sub.departmentId === student.departmentId),
+    );
+  }, [student, selectedMedium]);
+
+  const [selectedSubject, setSelectedSubject] = useState(
+    availableSubjects[0]?.id || "",
+  );
+
+  // --- NEW: Custom Dropdown State & Ref ---
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown if user clicks outside of it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Auto-select when flipping languages
+  useEffect(() => {
+    if (availableSubjects.length > 0) {
+      const currentStillExists = availableSubjects.find(
+        (s) => s.id === selectedSubject,
+      );
+      if (!currentStillExists) {
+        setSelectedSubject(availableSubjects[0].id);
+      }
+    }
+  }, [availableSubjects, selectedSubject]);
+
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
-
   const [autoRead, setAutoRead] = useState(false);
   const [inputLang, setInputLang] = useState("en-IN");
 
@@ -62,27 +119,22 @@ const MainPortal = () => {
   } = useSpeechRecognition();
 
   useEffect(() => {
-    if (transcript) {
-      setInput(transcript);
-    }
+    if (transcript) setInput(transcript);
   }, [transcript]);
 
   useEffect(() => {
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       setVoices(availableVoices);
-
       const taVoice = availableVoices.find(
         (v) => v.name.includes("Valluvar") || v.lang.includes("ta"),
       );
       setTamilVoice(taVoice || null);
-
       const enVoice = availableVoices.find(
         (v) => v.name.includes("Mark") || v.name.includes("Google US"),
       );
       setEnglishVoice(enVoice || availableVoices[0]);
     };
-
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
@@ -100,6 +152,16 @@ const MainPortal = () => {
     }
   };
 
+  // --- UPDATED: Subject Selection Handler ---
+  const handleSubjectSelect = (subjectId: string) => {
+    setSelectedSubject(subjectId);
+    setResponse("");
+    setError("");
+    setInput("");
+    stopSpeaking();
+    setIsDropdownOpen(false); // Close the menu after picking a subject!
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     setAutoRead(false);
@@ -114,22 +176,18 @@ const MainPortal = () => {
       /[\u{1F600}-\u{1F6FF}|[\u{1F300}-\u{1F5FF}|[\u{1F680}-\u{1F6FF}|[\u{1F700}-\u{1F77F}|[\u{1F780}-\u{1F7FF}|[\u{1F800}-\u{1F8FF}|[\u{1F900}-\u{1F9FF}|[\u{1FA00}-\u{1FA6F}|[\u{1FA70}-\u{1FAFF}|[\u{2600}-\u{26FF}|[\u{2700}-\u{27BF}]/gu,
       "",
     );
-
     let processedText = noEmojiText
       .replace(/\*\*Correct English:\*\*/g, "\nCorrect English:")
       .replace(/\*\*விளக்கம்:?\*\*/g, "\nவிளக்கம்:")
       .replace(/\*\*உச்சரிப்பு:?\*\*/g, "\nஉச்சரிப்பு:");
-
     const cleanText = processedText.replace(/[*#_`]/g, "");
     const lines = cleanText.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-
       const utterance = new SpeechSynthesisUtterance(line);
       utterance.rate = 0.9;
-
       const hasTamilChar = /[\u0B80-\u0BFF]/.test(line);
 
       if (hasTamilChar && tamilVoice) {
@@ -156,19 +214,16 @@ const MainPortal = () => {
   const handleDownloadPDF = async () => {
     const element = responseRef.current;
     if (!element) return;
-
     try {
       const dataUrl = await toPng(element, {
         cacheBust: true,
         backgroundColor: "#ffffff",
         pixelRatio: 3,
       });
-
       const pdf = new jsPDF("p", "mm", "a4");
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
       pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save("Activity_Plan.pdf");
     } catch (err) {
@@ -186,18 +241,16 @@ const MainPortal = () => {
     setError("");
     stopSpeaking();
 
-    // 1. Dynamic endpoint based on mode
-    let endpoint = `${API_BASE_URL}/${mode}`;
-
-    // 2. Prepare the Body with Logging Data
+    const endpoint = `${API_BASE_URL}/${mode}`;
     const bodyData = {
       topic: input,
       subjectId: mode !== "grammar" ? selectedSubject : "",
       collegeName: student?.collegeName,
       studentName: student?.name,
       rollNo: student?.rollNo,
-      studentId: student?.id, // CRITICAL: This is what the backend uses to check the Token Quota
-      institutionId: student?.institutionId, // CRITICAL: This is what the backend uses to check the Token Quota
+      studentId: student?.id,
+      institutionId: student?.institutionId,
+      medium: selectedMedium,
     };
 
     try {
@@ -210,10 +263,7 @@ const MainPortal = () => {
       if (!res.ok) throw new Error("Server Error");
       const data = await res.json();
       setResponse(data.answer);
-
-      if (autoRead) {
-        speakText(data.answer);
-      }
+      if (autoRead) speakText(data.answer);
     } catch (err) {
       setError("⚠️ Connection error. Please ensure the backend is running.");
     } finally {
@@ -244,13 +294,10 @@ const MainPortal = () => {
     stopSpeaking();
   };
 
-  // Inside your return statement, update the header:
-
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-[#0b1f38] text-white p-5 shadow-lg sticky top-0 z-10 border-b border-cyan-900/50">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* LEFT SIDE: Logo and Institutional Branding */}
           <div className="flex items-center gap-4">
             <div className="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center shrink-0">
               <img
@@ -263,48 +310,93 @@ const MainPortal = () => {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">Karpi AI</h1>
                 <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded text-[10px] font-bold uppercase tracking-tighter">
-                  {student?.department} - Sem {student?.semester}{" "}
-                  {/* Dynamic degree! */}
+                  {student?.department} - Sem {student?.semester}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-cyan-400">
-                <School size={14} className="shrink-0" />
-                <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[180px]">
-                  {student?.collegeName} {/* Updated */}
+              <div className="flex items-start gap-2 text-cyan-400">
+                <School size={14} className="shrink-0 mt-0.5" />
+                <span className="text-xs font-bold uppercase tracking-widest leading-tight max-w-[280px]">
+                  {student?.collegeName}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT SIDE: Controls and Logout */}
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto">
-            {/* App Slogan (Hidden on small screens) */}
             <p className="hidden lg:block text-gray-400 text-sm font-light italic pr-4 border-r border-white/10">
               Intelligent Study Assistant
             </p>
 
-            {/* Subject Selector (Hidden in Grammar mode) */}
             {mode !== "grammar" && (
-              <div className="relative w-full sm:w-64">
-                <select
-                  value={selectedSubject}
-                  onChange={handleSelectedSubjectChange}
-                  className="w-full appearance-none bg-[#132f50] text-white border border-cyan-500/30 py-2.5 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4] cursor-pointer font-medium transition-colors hover:border-cyan-400/50 shadow-inner"
-                >
-                  {SUBJECTS.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none"
-                  size={18}
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                {/* --- ENGLISH / TAMIL TOGGLE --- */}
+                <div className="flex bg-[#132f50] rounded-lg p-1 border border-cyan-500/30 shadow-inner">
+                  <button
+                    onClick={() => {
+                      setSelectedMedium("English");
+                      // revert text box old content
+                      setInput("");
+                      setResponse("");
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "English" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedMedium("Tamil");
+                      // revert text box old content
+                      setInput("");
+                      setResponse("");
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "Tamil" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
+                  >
+                    தமிழ்
+                  </button>
+                </div>
+
+                {/* --- SLEEK CUSTOM TAILWIND DROPDOWN --- */}
+                <div className="relative w-full sm:w-72" ref={dropdownRef}>
+                  {/* The Main Trigger Button */}
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="w-full flex items-center justify-between bg-[#132f50] text-white border border-cyan-500/30 py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4] transition-colors hover:border-cyan-400/50 shadow-inner"
+                  >
+                    <span className="font-medium truncate pr-2">
+                      {availableSubjects.find((s) => s.id === selectedSubject)
+                        ?.name || "Select Subject"}
+                    </span>
+                    <ChevronDown
+                      className={`text-cyan-400 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                      size={18}
+                    />
+                  </button>
+
+                  {/* The Floating Dropdown Menu */}
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 w-full mt-2 bg-[#0b1f38] border border-cyan-500/30 rounded-xl shadow-2xl z-50 overflow-hidden transform transition-all">
+                      <ul className="max-h-60 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-cyan-700 scrollbar-track-transparent">
+                        {availableSubjects.map((sub) => (
+                          <li key={sub.id}>
+                            <button
+                              onClick={() => handleSubjectSelect(sub.id)}
+                              className={`w-full text-left px-4 py-3 text-sm transition-all ${
+                                selectedSubject === sub.id
+                                  ? "bg-cyan-500/10 text-cyan-400 font-bold border-l-2 border-cyan-400"
+                                  : "text-gray-300 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
+                              }`}
+                            >
+                              {sub.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Logout Button */}
             <button
               onClick={logout}
               className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 transition-all text-xs font-bold active:scale-95"
@@ -317,7 +409,6 @@ const MainPortal = () => {
       </header>
 
       <main className="max-w-4xl mx-auto p-6 pb-24">
-        {/* MODE SWITCHER */}
         <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-8 overflow-x-auto">
           <button
             onClick={() => handleModeChange("learn")}
@@ -325,21 +416,18 @@ const MainPortal = () => {
           >
             <BookOpen size={20} /> Learn
           </button>
-
           <button
             onClick={() => handleModeChange("activity")}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all whitespace-nowrap px-4 ${mode === "activity" ? "bg-cyan-50 text-cyan-700" : "text-slate-500 hover:bg-slate-50"}`}
           >
             <Palette size={20} /> Activity
           </button>
-
           <button
             onClick={() => handleModeChange("exam")}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all whitespace-nowrap px-4 ${mode === "exam" ? "bg-cyan-50 text-cyan-700" : "text-slate-500 hover:bg-slate-50"}`}
           >
             <PenTool size={20} /> Exam
           </button>
-
           <button
             onClick={() => handleModeChange("grammar")}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all whitespace-nowrap px-4 ${mode === "grammar" ? "bg-cyan-50 text-cyan-700" : "text-slate-500 hover:bg-slate-50"}`}
@@ -352,12 +440,21 @@ const MainPortal = () => {
         <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
           <label className="block text-sm font-medium text-slate-600 mb-2">
             {mode === "learn"
-              ? `Ask a question in ${SUBJECTS.find((s) => s.id === selectedSubject)?.name}:`
+              ? `Ask a question in ${availableSubjects.find((s) => s.id === selectedSubject)?.name || "your subject"}:`
               : mode === "activity"
                 ? "Generate Classroom Activity for:"
                 : mode === "grammar"
                   ? "Enter sentence to correct:"
                   : "Generate Questions for:"}
+
+            {/* DYNAMIC LANGUAGE INSTRUCTION */}
+            {mode !== "grammar" && (
+              <span
+                className={`ml-2 text-xs font-bold px-2 py-0.5 rounded ${selectedMedium === "Tamil" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
+              >
+                (Please type in {selectedMedium})
+              </span>
+            )}
           </label>
           <div className="flex gap-2">
             <button
@@ -368,16 +465,22 @@ const MainPortal = () => {
               {listening ? <MicOff size={24} /> : <Mic size={24} />}
             </button>
 
+            {/* DYNAMIC PLACEHOLDER */}
             <input
               type="text"
               value={input}
               onChange={handleInputChange}
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-              placeholder={listening ? "Listening..." : "Type here..."}
+              placeholder={
+                listening
+                  ? "Listening..."
+                  : selectedMedium === "Tamil"
+                    ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..."
+                    : "Type here..."
+              }
               className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
             />
 
-            {/* Cyan button to match logo accents */}
             <button
               onClick={handleGenerate}
               disabled={loading}
@@ -392,7 +495,6 @@ const MainPortal = () => {
           </div>
         </div>
 
-        {/* RESPONSE AREA */}
         {response && (
           <div className="mt-8 bg-white p-8 rounded-xl shadow-md border border-slate-100">
             <div className="flex justify-between items-center mb-4 border-b pb-4">
@@ -412,7 +514,6 @@ const MainPortal = () => {
                     <Download size={18} /> PDF
                   </button>
                 )}
-
                 {mode !== "exam" && (
                   <button
                     onClick={
@@ -432,7 +533,7 @@ const MainPortal = () => {
             </div>
             <div
               ref={responseRef}
-              className="prose prose-cyan max-w-none text-slate-700 p-4 bg-white"
+              className="prose prose-cyan max-w-none text-slate-700 p-4 bg-white prose-pre:whitespace-pre-wrap break-words"
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {response}

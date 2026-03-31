@@ -6,23 +6,28 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { TabView, TabPanel } from 'primereact/tabview';
-import karpiLogo from "../assets/logo.png"; // Make sure to have a logo in this path or update accordingly
+import karpiLogo from "../assets/logo.png"; 
 
+// --- UPDATED: Added program and medium ---
 interface StudentMetric {
     rollNumber: string;
     name: string;
+    program: string;     
     department: string;
     semester: number;
+    medium: string;      
     wordsUsed: number;
 }
 
+// --- UPDATED: Added program ---
 interface UsageLog {
     id: string;
     studentName: string;
     rollNumber: string;
+    program: string;     
     department: string;
     semester: number;
-    subjectName: string;
+    subjectName: string; 
     mode: string;
     topic: string;
     createdAt: string;
@@ -36,7 +41,7 @@ const AdminDashboard: React.FC = () => {
     const [accessCode, setAccessCode] = useState<string>('');
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
-    const [isRefreshing, setIsRefreshing] = useState<boolean>(false); // State for the sync button
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false); 
     const [error, setError] = useState<string>('');
     
     const [metrics, setMetrics] = useState<StudentMetric[]>([]);
@@ -44,7 +49,6 @@ const AdminDashboard: React.FC = () => {
     const [institutionName, setInstitutionName] = useState<string>('');
     const [totalStudents, setTotalStudents] = useState<number>(0);
 
-    // --- FEATURE 1: Session Persistence & Data Fetching ---
     const fetchDashboardData = async (code: string, silentRefresh = false) => {
         if (!silentRefresh) setLoading(true);
         else setIsRefreshing(true);
@@ -73,7 +77,6 @@ const AdminDashboard: React.FC = () => {
             setLogs(logData.logs);
             setIsAuthenticated(true);
             
-            // Save to session storage so reloads don't log them out
             sessionStorage.setItem('adminAccessCode', code);
 
         } catch (err: any) {
@@ -86,7 +89,6 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    // Auto-login on page reload if session exists
     useEffect(() => {
         const savedCode = sessionStorage.getItem('adminAccessCode');
         if (savedCode) {
@@ -106,23 +108,17 @@ const AdminDashboard: React.FC = () => {
         sessionStorage.removeItem('adminAccessCode');
     };
 
-   // --- VIEW 1: Login Screen ---
     if (!isAuthenticated) {
         return (
-            // CRITICAL FIX: Added w-full and ensured flex-col is present to stack elements vertically
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4 w-full">
-                
-                {/* --- LOGO CONTAINER --- */}
                 <div className="mb-6 flex justify-center w-full">
                     <img 
                         src={karpiLogo} 
                         alt="Karpi AI Logo" 
-                        // Bumped height from h-24/28 to h-36/48 for massive legibility
                         className="h-35 md:h-45 w-auto object-contain rounded-2xl shadow-md" 
                     />
                 </div>
 
-                {/* --- LOGIN CARD --- */}
                 <Card title="Institutional Admin Access" className="w-full max-w-md shadow-lg rounded-xl border-none">
                     <form onSubmit={handleLogin} className="flex flex-col gap-4 mt-2">
                         <div className="flex flex-col gap-2">
@@ -160,7 +156,6 @@ const AdminDashboard: React.FC = () => {
         );
     }
 
-    // --- VIEW 2: Data Dashboard ---
     return (
         <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -178,7 +173,6 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                     
-                    {/* --- FEATURE 2: Sync & Logout Buttons --- */}
                     <div className="flex gap-2">
                         <Button 
                             icon={isRefreshing ? "pi pi-spin pi-spinner" : "pi pi-sync"} 
@@ -206,28 +200,31 @@ const AdminDashboard: React.FC = () => {
 
             <Card className="shadow-lg rounded-xl overflow-hidden border-none p-0">
                 <TabView className="w-full">
-                    {/* TAB 1: High-Level Metrics */}
+                    {/* --- TAB 1: High-Level Metrics (Added Program and Medium) --- */}
                     <TabPanel header="Student Metrics" leftIcon="pi pi-chart-bar mr-2">
-                        <DataTable value={metrics} paginator rows={10} rowsPerPageOptions={[10, 25, 50]} dataKey="rollNumber" emptyMessage="No student activity found." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '50rem' }}>
-                            <Column field="rollNumber" header="Roll Number" sortable style={{ width: '15%' }}></Column>
-                            <Column field="name" header="Student Name" sortable style={{ width: '25%' }}></Column>
-                            <Column field="department" header="Department" sortable style={{ width: '25%' }}></Column>
-                            <Column field="semester" header="Sem" sortable align="center" style={{ width: '15%' }}></Column>
-                            <Column field="wordsUsed" header="Words Generated" sortable style={{ width: '20%' }} body={(rowData) => <span className="font-bold text-blue-600">{rowData.wordsUsed.toLocaleString()} words</span>}></Column>
+                        <DataTable value={metrics} paginator rows={10} rowsPerPageOptions={[10, 25, 50]} dataKey="rollNumber" emptyMessage="No student activity found." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '60rem' }}>
+                            <Column field="rollNumber" header="Roll Number" sortable style={{ width: '12%' }}></Column>
+                            <Column field="name" header="Student Name" sortable style={{ width: '20%' }}></Column>
+                            <Column field="program" header="Program" sortable style={{ width: '12%' }}></Column>
+                            <Column field="department" header="Department" sortable style={{ width: '20%' }}></Column>
+                            <Column field="semester" header="Sem" sortable align="center" style={{ width: '8%' }}></Column>
+                            <Column field="medium" header="Medium" sortable align="center" style={{ width: '10%' }}></Column>
+                            <Column field="wordsUsed" header="Words Generated" sortable style={{ width: '18%' }} body={(rowData) => <span className="font-bold text-blue-600">{rowData.wordsUsed.toLocaleString()} words</span>}></Column>
                         </DataTable>
                     </TabPanel>
 
-                    {/* TAB 2: Detailed Audit Trail (Now with Department!) */}
+                    {/* --- TAB 2: Detailed Audit Trail (Added Program) --- */}
                     <TabPanel header="Detailed Audit Log" leftIcon="pi pi-list mr-2">
-                        <DataTable value={logs} paginator rows={10} rowsPerPageOptions={[10, 50, 100]} dataKey="id" emptyMessage="No queries logged yet." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '65rem' }}>
+                        <DataTable value={logs} paginator rows={10} rowsPerPageOptions={[10, 50, 100]} dataKey="id" emptyMessage="No queries logged yet." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '75rem' }}>
                             <Column field="createdAt" header="Timestamp" sortable style={{ width: '10%' }}></Column>
                             <Column field="rollNumber" header="Roll No." sortable style={{ width: '8%' }}></Column>
                             <Column field="studentName" header="Name" sortable style={{ width: '12%' }}></Column>
+                            <Column field="program" header="Program" sortable style={{ width: '8%' }}></Column>
                             <Column field="department" header="Dept" sortable style={{ width: '12%' }}></Column>
                             <Column field="semester" header="Sem" sortable align="center" style={{ width: '5%' }}></Column>
                             <Column field="subjectName" header="Subject" sortable style={{ width: '18%' }}></Column>
-                            <Column field="mode" header="Mode" sortable style={{ width: '10%' }} body={(rowData) => <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold uppercase">{rowData.mode}</span>}></Column>
-                            <Column field="topic" header="Query / Topic" style={{ width: '25%' }}></Column>
+                            <Column field="mode" header="Mode" sortable style={{ width: '8%' }} body={(rowData) => <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold uppercase">{rowData.mode}</span>}></Column>
+                            <Column field="topic" header="Query / Topic" style={{ width: '19%' }}></Column>
                         </DataTable>
                     </TabPanel>
                 </TabView>

@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import the router hook
-import { useAuth } from "../context/AuthContext"; // Import our global memory
+import { useNavigate } from "react-router-dom"; 
+import { useAuth } from "../context/AuthContext"; 
 import { PenTool, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
 import karpiLogo from "../assets/logo.png";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-// Notice: We completely removed the Props!
 const Registration = () => {
-  const navigate = useNavigate(); // Tool to change pages
-  const { login } = useAuth();    // Tool to save student session
+  const navigate = useNavigate(); 
+  const { login } = useAuth();    
   
   const [regData, setRegData] = useState({ rollNo: "", accessCode: "" });
   const [loading, setLoading] = useState(false);
@@ -28,21 +27,24 @@ const Registration = () => {
       const data = await res.json();
 
       if (res.ok) {
-        // Construct the SaaS Profile based on backend response
+        // Construct the SaaS Profile based on the perfectly normalized backend response
         const userData = {
-          id: data.studentId || "temp-id-replace-me", // CRITICAL for billing
-          institutionId: data.institutionId || "temp-institution-replace-me", // CRITICAL for billing
+          id: data.studentId, 
+          institutionId: data.institutionId, 
           name: data.studentName,
           collegeName: data.collegeName,
           rollNo: regData.rollNo,
-          department: data.department || "B.Ed.",
-          semester: data.semester || 1,
+          department: data.department, // The Text Name (e.g., "Computer Science")
+          semester: data.semester,
+          
+          // --- SCALABLE ARCHITECTURE DATA ---
+          // programId comes from the backend's JOIN with the departments table
+          programId: data.programId, 
+          departmentId: data.departmentId,
+          medium: data.medium || "English" // Defaults to English if missing
         };
 
-        // 1. Save to global context (which handles localStorage automatically)
         login(userData); 
-        
-        // 2. Teleport the user to the portal!
         navigate("/portal"); 
       } else {
         alert(data.message);
@@ -67,16 +69,6 @@ const Registration = () => {
 
         <form onSubmit={handleRegister} className="p-8 space-y-5">
           <div className="space-y-4">
-            {/* <div className="relative">
-              <UserPlus className="absolute left-3 top-3.5 text-slate-400" size={18} />
-              <input
-                required
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
-                placeholder="Full Name"
-                onChange={(e) => setRegData({ ...regData, name: e.target.value })}
-              />
-            </div> */}
-
             <div className="relative">
               <PenTool className="absolute left-3 top-3.5 text-slate-400" size={18} />
               <input

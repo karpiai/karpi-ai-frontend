@@ -9,6 +9,10 @@ export interface StudentProfile {
   semester: number;
   collegeName: string;
   institutionId: string; // CRITICAL for billing and admin features
+  // --- SCALABLE ARCHITECTURE FIELDS ---
+  programId: string; // e.g., "6bf348ad-a999-4dbc-b006-643e0ac863b8" for B.Ed
+  departmentId: string; // e.g., "33f8e401-5bdb-4e4f-835a-876aac8a6a60" for General
+  medium: string; // e.g., "English" or "Tamil"
 }
 
 interface AuthContextType {
