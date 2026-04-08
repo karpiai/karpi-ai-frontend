@@ -33,6 +33,7 @@ import {
   PROGRAMS,
 } from "../util/subjectMetadata";
 import { SYLLABUS_MAP } from "../util/syllabusData";
+import { DEFAULT_PHRASES, SUBJECT_PHRASES } from "../util/phrases";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001/api";
@@ -137,6 +138,98 @@ const MainPortal = () => {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
 
+  // ==========================================
+  // 🪄 EFFECT 1: DYNAMIC ANIMATED PLACEHOLDER
+  // ==========================================
+  const [placeholderText, setPlaceholderText] = useState("");
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // 1. Pull phrases dynamically from phrases.ts based on the active UUID
+  const phrases = useMemo(() => {
+    const subjectData = SUBJECT_PHRASES[selectedSubject];
+
+    if (subjectData) {
+      if (selectedMedium === "Tamil" && subjectData.Tamil) {
+        return subjectData.Tamil;
+      }
+      if (selectedMedium === "English" && subjectData.English) {
+        return subjectData.English;
+      }
+    }
+
+    // Fallback if the subject UUID isn't in phrases.ts yet
+    return selectedMedium === "Tamil"
+      ? DEFAULT_PHRASES.Tamil
+      : DEFAULT_PHRASES.English;
+  }, [selectedSubject, selectedMedium]);
+
+  // 2. Reset the typing animation cleanly when the subject or language changes
+  useEffect(() => {
+    setPlaceholderText("");
+    setCurrentPhraseIndex(0);
+    setIsDeleting(false);
+  }, [phrases]);
+
+  // 3. The actual typing effect
+  useEffect(() => {
+    if (!phrases || phrases.length === 0) return;
+
+    const currentPhrase = phrases[currentPhraseIndex];
+    if (!currentPhrase) {
+      setCurrentPhraseIndex(0);
+      return;
+    }
+
+    const typeSpeed = isDeleting ? 30 : 80;
+
+    const timeout = setTimeout(() => {
+      if (!isDeleting && placeholderText === currentPhrase) {
+        // Pause at the end of the sentence
+        setTimeout(() => setIsDeleting(true), 2000);
+      } else if (isDeleting && placeholderText === "") {
+        // Move to the next phrase
+        setIsDeleting(false);
+        setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length);
+      } else {
+        // Type or delete characters
+        const nextText = isDeleting
+          ? currentPhrase.substring(0, placeholderText.length - 1)
+          : currentPhrase.substring(0, placeholderText.length + 1);
+        setPlaceholderText(nextText);
+      }
+    }, typeSpeed);
+
+    return () => clearTimeout(timeout);
+  }, [placeholderText, isDeleting, currentPhraseIndex, phrases]);
+
+  // ==========================================
+  // 🪄 EFFECT 2: AI STREAMING RESPONSE
+  // ==========================================
+  const [displayedResponse, setDisplayedResponse] = useState("");
+
+  useEffect(() => {
+    if (!response) {
+      setDisplayedResponse("");
+      return;
+    }
+
+    let currentIndex = 0;
+    // We add 3 characters at a time to make it fast and smooth.
+    // You can change '3' to '1' for slower typing, or '5' for faster.
+    const intervalId = setInterval(() => {
+      setDisplayedResponse(response.slice(0, currentIndex));
+      currentIndex += 3;
+
+      if (currentIndex > response.length) {
+        clearInterval(intervalId);
+        setDisplayedResponse(response); // Ensure the final string is fully set
+      }
+    }, 10); // Runs every 10 milliseconds
+
+    return () => clearInterval(intervalId);
+  }, [response]);
+
   const toggleListening = () => {
     if (listening) {
       SpeechRecognition.stopListening();
@@ -153,6 +246,7 @@ const MainPortal = () => {
   const handleSubjectSelect = (subjectId: string) => {
     setSelectedSubject(subjectId);
     setResponse("");
+    setDisplayedResponse("");
     setError("");
     setInput("");
     stopSpeaking();
@@ -174,6 +268,7 @@ const MainPortal = () => {
     setInput(query); // Update the search bar visually if they clicked a pill
     setLoading(true);
     setResponse("");
+    setDisplayedResponse("");
     setError("");
     stopSpeaking();
 
@@ -275,6 +370,7 @@ const MainPortal = () => {
   ) => {
     setMode(newMode);
     setResponse("");
+    setDisplayedResponse("");
     setError("");
     setInput("");
     stopSpeaking();
@@ -320,6 +416,7 @@ const MainPortal = () => {
                       setSelectedMedium("English");
                       setInput("");
                       setResponse("");
+                      setDisplayedResponse("");
                     }}
                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "English" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
                   >
@@ -330,6 +427,7 @@ const MainPortal = () => {
                       setSelectedMedium("Tamil");
                       setInput("");
                       setResponse("");
+                      setDisplayedResponse("");
                     }}
                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "Tamil" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
                   >
@@ -443,9 +541,9 @@ const MainPortal = () => {
               placeholder={
                 listening
                   ? "Listening..."
-                  : selectedMedium === "Tamil"
-                    ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..."
-                    : "Type here..."
+                  : /* selectedMedium === "Tamil"
+                    ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..." */
+                    placeholderText || "Type here..."
               }
               className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
             />
@@ -505,9 +603,15 @@ const MainPortal = () => {
               className="prose prose-cyan max-w-none text-slate-700 p-4 bg-white prose-pre:whitespace-pre-wrap break-words"
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {response}
+                {displayedResponse}
               </ReactMarkdown>
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+            {error}
           </div>
         )}
 
@@ -574,12 +678,6 @@ const MainPortal = () => {
           </div>
         )}
         {/* ========================================================= */}
-
-        {error && (
-          <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
-            {error}
-          </div>
-        )}
       </main>
     </div>
   );
