@@ -15,22 +15,24 @@ import {
   Volume2,
   StopCircle,
   ChevronDown,
+  ChevronUp,
   Palette,
   Download,
   Languages,
   School,
   LogOut,
+  ListTree,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import karpilogo from "../assets/logo.png";
 import { useAuth } from "../context/AuthContext";
-// IMPORT YOUR SCALABLE DICTIONARY
 import {
   SUBJECT_METADATA,
   DEPARTMENTS,
   PROGRAMS,
 } from "../util/subjectMetadata";
+import { SYLLABUS_MAP } from "../util/syllabusData";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001/api";
@@ -41,12 +43,10 @@ const MainPortal = () => {
     "learn",
   );
 
-  // --- DYNAMIC MEDIUM TOGGLE ---
   const [selectedMedium, setSelectedMedium] = useState<"English" | "Tamil">(
     (student?.medium as "English" | "Tamil") || "English",
   );
 
-  // --- DYNAMIC SUBJECT FILTER ENGINE ---
   const availableSubjects = useMemo(() => {
     if (!student) return [];
     return SUBJECT_METADATA.filter(
@@ -64,11 +64,12 @@ const MainPortal = () => {
     availableSubjects[0]?.id || "",
   );
 
-  // --- NEW: Custom Dropdown State & Ref ---
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown if user clicks outside of it
+  // State for the Syllabus Accordion (Defaults to Unit 1 open)
+  const [expandedUnit, setExpandedUnit] = useState<number | null>(1);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -82,15 +83,12 @@ const MainPortal = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Auto-select when flipping languages
   useEffect(() => {
     if (availableSubjects.length > 0) {
       const currentStillExists = availableSubjects.find(
         (s) => s.id === selectedSubject,
       );
-      if (!currentStillExists) {
-        setSelectedSubject(availableSubjects[0].id);
-      }
+      if (!currentStillExists) setSelectedSubject(availableSubjects[0].id);
     }
   }, [availableSubjects, selectedSubject]);
 
@@ -152,14 +150,14 @@ const MainPortal = () => {
     }
   };
 
-  // --- UPDATED: Subject Selection Handler ---
   const handleSubjectSelect = (subjectId: string) => {
     setSelectedSubject(subjectId);
     setResponse("");
     setError("");
     setInput("");
     stopSpeaking();
-    setIsDropdownOpen(false); // Close the menu after picking a subject!
+    setIsDropdownOpen(false);
+    setExpandedUnit(1); // Reset accordion when changing subject
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,13 +165,54 @@ const MainPortal = () => {
     setAutoRead(false);
   };
 
+  // --- UPDATED: Accepts an optional string to bypass the typing completely ---
+  const handleGenerate = async (overrideTopic?: string) => {
+    const query = overrideTopic || input;
+    if (!query.trim()) return;
+    if (listening) SpeechRecognition.stopListening();
+
+    setInput(query); // Update the search bar visually if they clicked a pill
+    setLoading(true);
+    setResponse("");
+    setError("");
+    stopSpeaking();
+
+    const endpoint = `${API_BASE_URL}/${mode}`;
+    const bodyData = {
+      topic: query,
+      subjectId: mode !== "grammar" ? selectedSubject : "",
+      collegeName: student?.collegeName,
+      studentName: student?.name,
+      rollNo: student?.rollNo,
+      studentId: student?.id,
+      institutionId: student?.institutionId,
+      medium: selectedMedium,
+    };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyData),
+      });
+
+      if (!res.ok) throw new Error("Server Error");
+      const data = await res.json();
+      setResponse(data.answer);
+      if (autoRead) speakText(data.answer);
+    } catch (err) {
+      setError("⚠️ Connection error. Please ensure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const speakText = async (text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     setIsSpeaking(true);
-
     const noEmojiText = text.replace(
-      /[\u{1F600}-\u{1F6FF}|[\u{1F300}-\u{1F5FF}|[\u{1F680}-\u{1F6FF}|[\u{1F700}-\u{1F77F}|[\u{1F780}-\u{1F7FF}|[\u{1F800}-\u{1F8FF}|[\u{1F900}-\u{1F9FF}|[\u{1FA00}-\u{1FA6F}|[\u{1FA70}-\u{1FAFF}|[\u{2600}-\u{26FF}|[\u{2700}-\u{27BF}]/gu,
+      /[\u{1F600}-\u{1F6FF}|[\u{1F300}-\u{1F5FF}]/gu,
       "",
     );
     let processedText = noEmojiText
@@ -188,16 +227,13 @@ const MainPortal = () => {
       if (!line) continue;
       const utterance = new SpeechSynthesisUtterance(line);
       utterance.rate = 0.9;
-      const hasTamilChar = /[\u0B80-\u0BFF]/.test(line);
-
-      if (hasTamilChar && tamilVoice) {
+      if (/[\u0B80-\u0BFF]/.test(line) && tamilVoice) {
         utterance.voice = tamilVoice;
         utterance.lang = "ta-IN";
       } else if (englishVoice) {
         utterance.voice = englishVoice;
         utterance.lang = "en-US";
       }
-
       await new Promise<void>((resolve) => {
         utterance.onend = () => resolve();
         window.speechSynthesis.speak(utterance);
@@ -227,47 +263,7 @@ const MainPortal = () => {
       pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save("Activity_Plan.pdf");
     } catch (err) {
-      console.error("PDF Error:", err);
       alert("Could not generate PDF. Please try again.");
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!input.trim()) return;
-    if (listening) SpeechRecognition.stopListening();
-
-    setLoading(true);
-    setResponse("");
-    setError("");
-    stopSpeaking();
-
-    const endpoint = `${API_BASE_URL}/${mode}`;
-    const bodyData = {
-      topic: input,
-      subjectId: mode !== "grammar" ? selectedSubject : "",
-      collegeName: student?.collegeName,
-      studentName: student?.name,
-      rollNo: student?.rollNo,
-      studentId: student?.id,
-      institutionId: student?.institutionId,
-      medium: selectedMedium,
-    };
-
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyData),
-      });
-
-      if (!res.ok) throw new Error("Server Error");
-      const data = await res.json();
-      setResponse(data.answer);
-      if (autoRead) speakText(data.answer);
-    } catch (err) {
-      setError("⚠️ Connection error. Please ensure the backend is running.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -284,18 +280,11 @@ const MainPortal = () => {
     stopSpeaking();
   };
 
-  const handleSelectedSubjectChange = (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    setSelectedSubject(e.target.value);
-    setResponse("");
-    setError("");
-    setInput("");
-    stopSpeaking();
-  };
+  const activeSyllabus = SYLLABUS_MAP[selectedSubject];
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* HEADER SECTION (Unchanged) */}
       <header className="bg-[#0b1f38] text-white p-5 shadow-lg sticky top-0 z-10 border-b border-cyan-900/50">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -323,18 +312,12 @@ const MainPortal = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto">
-            <p className="hidden lg:block text-gray-400 text-sm font-light italic pr-4 border-r border-white/10">
-              Intelligent Study Assistant
-            </p>
-
             {mode !== "grammar" && (
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                {/* --- ENGLISH / TAMIL TOGGLE --- */}
                 <div className="flex bg-[#132f50] rounded-lg p-1 border border-cyan-500/30 shadow-inner">
                   <button
                     onClick={() => {
                       setSelectedMedium("English");
-                      // revert text box old content
                       setInput("");
                       setResponse("");
                     }}
@@ -345,7 +328,6 @@ const MainPortal = () => {
                   <button
                     onClick={() => {
                       setSelectedMedium("Tamil");
-                      // revert text box old content
                       setInput("");
                       setResponse("");
                     }}
@@ -354,10 +336,7 @@ const MainPortal = () => {
                     தமிழ்
                   </button>
                 </div>
-
-                {/* --- SLEEK CUSTOM TAILWIND DROPDOWN --- */}
                 <div className="relative w-full sm:w-72" ref={dropdownRef}>
-                  {/* The Main Trigger Button */}
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className="w-full flex items-center justify-between bg-[#132f50] text-white border border-cyan-500/30 py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4] transition-colors hover:border-cyan-400/50 shadow-inner"
@@ -371,8 +350,6 @@ const MainPortal = () => {
                       size={18}
                     />
                   </button>
-
-                  {/* The Floating Dropdown Menu */}
                   {isDropdownOpen && (
                     <div className="absolute top-full left-0 w-full mt-2 bg-[#0b1f38] border border-cyan-500/30 rounded-xl shadow-2xl z-50 overflow-hidden transform transition-all">
                       <ul className="max-h-60 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-cyan-700 scrollbar-track-transparent">
@@ -380,11 +357,7 @@ const MainPortal = () => {
                           <li key={sub.id}>
                             <button
                               onClick={() => handleSubjectSelect(sub.id)}
-                              className={`w-full text-left px-4 py-3 text-sm transition-all ${
-                                selectedSubject === sub.id
-                                  ? "bg-cyan-500/10 text-cyan-400 font-bold border-l-2 border-cyan-400"
-                                  : "text-gray-300 hover:bg-white/5 hover:text-white border-l-2 border-transparent"
-                              }`}
+                              className={`w-full text-left px-4 py-3 text-sm transition-all ${selectedSubject === sub.id ? "bg-cyan-500/10 text-cyan-400 font-bold border-l-2 border-cyan-400" : "text-gray-300 hover:bg-white/5 hover:text-white border-l-2 border-transparent"}`}
                             >
                               {sub.name}
                             </button>
@@ -396,7 +369,6 @@ const MainPortal = () => {
                 </div>
               </div>
             )}
-
             <button
               onClick={logout}
               className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 transition-all text-xs font-bold active:scale-95"
@@ -409,7 +381,8 @@ const MainPortal = () => {
       </header>
 
       <main className="max-w-4xl mx-auto p-6 pb-24">
-        <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-8 overflow-x-auto">
+        {/* MODE SELECTOR (Unchanged) */}
+        <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-6 overflow-x-auto">
           <button
             onClick={() => handleModeChange("learn")}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all whitespace-nowrap px-4 ${mode === "learn" ? "bg-cyan-50 text-cyan-700" : "text-slate-500 hover:bg-slate-50"}`}
@@ -446,8 +419,6 @@ const MainPortal = () => {
                 : mode === "grammar"
                   ? "Enter sentence to correct:"
                   : "Generate Questions for:"}
-
-            {/* DYNAMIC LANGUAGE INSTRUCTION */}
             {mode !== "grammar" && (
               <span
                 className={`ml-2 text-xs font-bold px-2 py-0.5 rounded ${selectedMedium === "Tamil" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
@@ -464,8 +435,6 @@ const MainPortal = () => {
             >
               {listening ? <MicOff size={24} /> : <Mic size={24} />}
             </button>
-
-            {/* DYNAMIC PLACEHOLDER */}
             <input
               type="text"
               value={input}
@@ -480,9 +449,8 @@ const MainPortal = () => {
               }
               className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
             />
-
             <button
-              onClick={handleGenerate}
+              onClick={() => handleGenerate()}
               disabled={loading}
               className="px-6 py-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white rounded-lg font-bold disabled:opacity-50 transition-colors shadow-sm"
             >
@@ -495,6 +463,7 @@ const MainPortal = () => {
           </div>
         </div>
 
+        {/* AI RESPONSE AREA */}
         {response && (
           <div className="mt-8 bg-white p-8 rounded-xl shadow-md border border-slate-100">
             <div className="flex justify-between items-center mb-4 border-b pb-4">
@@ -541,6 +510,71 @@ const MainPortal = () => {
             </div>
           </div>
         )}
+
+        {/* ========================================================= */}
+        {/* 📚 NEW: SYLLABUS EXPLORER (Only shows if subject has a map) */}
+        {/* ========================================================= */}
+        {mode !== "grammar" && activeSyllabus && (
+          <div className="mt-4 bg-white rounded-xl shadow-sm border border-cyan-100 overflow-hidden">
+            <div className="bg-cyan-50/50 p-4 border-b border-cyan-100 flex items-center gap-2 text-cyan-800">
+              <ListTree size={18} className="text-cyan-600" />
+              <h3 className="font-bold text-sm tracking-wide">
+                Syllabus Explorer:{" "}
+                <span className="font-medium text-cyan-600">
+                  {activeSyllabus.subjectName}
+                </span>
+              </h3>
+              <span className="ml-auto text-xs text-cyan-600/70 font-medium hidden sm:block">
+                Click any topic to learn instantly
+              </span>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {activeSyllabus.units.map((unit: any) => (
+                <div key={unit.unitNumber} className="group">
+                  <button
+                    onClick={() =>
+                      setExpandedUnit(
+                        expandedUnit === unit.unitNumber
+                          ? null
+                          : unit.unitNumber,
+                      )
+                    }
+                    className="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-slate-50 transition-colors focus:outline-none"
+                  >
+                    <span className="font-semibold text-slate-700 text-sm">
+                      Unit {unit.unitNumber}: {unit.unitTitle}
+                    </span>
+                    {expandedUnit === unit.unitNumber ? (
+                      <ChevronUp size={16} className="text-cyan-600" />
+                    ) : (
+                      <ChevronDown
+                        size={16}
+                        className="text-slate-400 group-hover:text-cyan-600 transition-colors"
+                      />
+                    )}
+                  </button>
+
+                  {expandedUnit === unit.unitNumber && (
+                    <div className="px-5 pb-4 pt-1 flex flex-wrap gap-2 bg-slate-50/50">
+                      {unit.topics.map((topic: string, index: number) => (
+                        <button
+                          key={index}
+                          onClick={() => handleGenerate(topic)}
+                          className="text-left text-xs font-medium px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:border-cyan-400 hover:text-cyan-700 hover:shadow-sm hover:-translate-y-0.5 transition-all"
+                        >
+                          {topic}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* ========================================================= */}
+
         {error && (
           <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
             {error}
