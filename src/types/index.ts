@@ -11,3 +11,16 @@ export interface ApiResponse {
   data?: BEdConceptResponse;
   message?: string;
 }
+
+export interface GrammarResponse {
+  correctedEnglish: string;
+  fluencyScore: number;
+  analysis: {
+    accuracy: number;
+    vocabulary: number;
+    coherence: number;
+  };
+  tamilExplanation: string;
+  pronunciation: string;
+  suggestions: string[];
+}

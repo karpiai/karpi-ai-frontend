@@ -126,5 +126,144 @@ export const SYLLABUS_MAP: Record<string, any> = {
         ]
       }
     ]
+  },
+  "6ae6964c-9b2b-4bd2-aecf-a4b1f084a435": {
+    subjectName: "Teaching and Learning",
+    units: [
+      {
+        unitNumber: 1,
+        unitTitle: "Nature of Learning and Teaching",
+        topics: [
+          "Learning: Meaning and definitions",
+          "Basic principles of learning",
+          "Rote learning vs. Meaningful learning",
+          "Techniques of active learning and their implications",
+          "Self-learning",
+          "Teaching: Meaning and definitions",
+          "Characteristics of good teaching"
+        ]
+      },
+      {
+        unitNumber: 2,
+        unitTitle: "Teaching in Diverse Classrooms and Learning In and Out of School",
+        topics: [
+          "Meaning and definitions of diverse classroom",
+          "Teaching in a diverse classroom",
+          "Preparations of teachers of diverse classroom",
+          "Diversity in the classroom",
+          "Purpose of learning in and out of school",
+          "Importance of observation learning",
+          "Advantages of learning outside the classroom",
+          "Modern strategies of learning"
+        ]
+      },
+      {
+        unitNumber: 3,
+        unitTitle: "Theory of Constructivism and Learner Centered Teaching",
+        topics: [
+          "Constructivism: Meaning and definitions",
+          "The nature of constructivist learners and the learning process",
+          "Pedagogical approaches to constructivism",
+          "Characteristics of learner centered teaching and learning",
+          "Advantages of learner-centered teaching vs Teacher centered learning"
+        ]
+      },
+      {
+        unitNumber: 4,
+        unitTitle: "Models of Teaching",
+        topics: [
+          "Model of teaching: Meaning, definitions, and function",
+          "Philosophical teaching models: Insight model (Plato), Impression model (John Locke) and Rule model (Kant)",
+          "Psychological models: Basic teaching model (Robert Glasser), Interaction model (Flander) and Computer based model (Daniel Davis)",
+          "Modern teaching models: Information processing, Personal, Social interaction and Behavior modification models"
+        ]
+      },
+      {
+        unitNumber: 5,
+        unitTitle: "Teaching as a Profession",
+        topics: [
+          "Teaching: Concept, nature and characteristics",
+          "Knowledge types: Content, Pedagogical, and Technological knowledge",
+          "Professional attitude and reflective practice",
+          "Continuing professional development of teachers: Concept, process and strategies",
+          "Teacher's professional ethics and accountability",
+          "Recommendations of NPE 1968, 1986/92, RTE Act 2009 and NPE 2020"
+        ]
+      }
+    ]
+  },
+  "LANGUAGE_ACROSS_CURRICULUM_UUID": {
+    subjectName: "Language Across the Curriculum",
+    units: [
+      {
+        unitNumber: 1,
+        unitTitle: "Conceptualization and Principles of Language Across the Curriculum",
+        topics: [
+          "Meaning, concept, goals, aims, needs and importance of Language Across the Curriculum",
+          "Plurilingualism: Concept and importance",
+          "Modes of human activities involving language",
+          "Language Objectives: Relationship between language and thinking",
+          "Development of conceptual literacy",
+          "Basic tenets and principles of Language Across the Curriculum",
+          "Integration across the curriculum: Personal and pedagogical integration"
+        ]
+      },
+      {
+        unitNumber: 2,
+        unitTitle: "Academic and Social Language",
+        topics: [
+          "Language: Meaning, concept, definitions, functions and importance",
+          "Proficiency of home language vs. school language",
+          "Strategies for Enhancing Language Proficiency: Drama, essay, storytelling, group discussion, peer tutoring",
+          "Expository texts vs. Narrative texts",
+          "Transactional vs. Reflexive texts",
+          "Reading comprehension, language, and literacy skills",
+          "Linguistic education: Academic language vs. Social language",
+          "CALP skills and BICS skills",
+          "Conceptual literacy"
+        ]
+      },
+      {
+        unitNumber: 3,
+        unitTitle: "Integrated Curriculum and Language Education",
+        topics: [
+          "Integrated Curriculum: Meaning, features, objectives and types",
+          "Levels of curriculum integration",
+          "Models: Multidisciplinary, Inter-disciplinary, Trans-disciplinary and Spiral curricula",
+          "Coyle's 4C's of curriculum",
+          "Content and Language Integrated Learning (CLIL) approach",
+          "National Curriculum Framework (NCF-2005)",
+          "Recognition of mother tongue"
+        ]
+      },
+      {
+        unitNumber: 4,
+        unitTitle: "Theories of Language Learning",
+        topics: [
+          "Plato's Problem theory of language",
+          "Cartesian theory of language production",
+          "Locke's theory of Tabula Rasa",
+          "Skinner's Imitation theory of language acquisition",
+          "Chomsky's Universal Grammar theory",
+          "Schumann's Cultural theory",
+          "Krashen's Monitor theory",
+          "Piaget's views on language learning",
+          "Vygotsky's cultural tools for language learning"
+        ]
+      },
+      {
+        unitNumber: 5,
+        unitTitle: "Language Related Issues",
+        topics: [
+          "Bilingualism and Multilingualism",
+          "Challenges of teaching language in multicultural classrooms",
+          "Linguistic interdependence and educational development",
+          "Nature of reading comprehension in content areas",
+          "Developing writing skills in specific content areas",
+          "Strategies for developing oral language across subject areas",
+          "Reading in social sciences, science and mathematics"
+        ]
+      }
+    ]
   }
 };

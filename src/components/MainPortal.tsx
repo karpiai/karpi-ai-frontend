@@ -94,7 +94,7 @@ const MainPortal = () => {
   }, [availableSubjects, selectedSubject]);
 
   const [input, setInput] = useState("");
-  const [response, setResponse] = useState("");
+  const [response, setResponse] = useState<any>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -293,7 +293,15 @@ const MainPortal = () => {
 
       if (!res.ok) throw new Error("Server Error");
       const data = await res.json();
+      
+      // If we are in grammar mode, we save the object directly.
+      // Otherwise, we keep the string for streaming.
       setResponse(data.answer);
+      
+      if (mode !== "grammar") {
+        setDisplayedResponse(data.answer);
+      }
+      
       if (autoRead) speakText(data.answer);
     } catch (err) {
       setError("⚠️ Connection error. Please ensure the backend is running.");
@@ -540,10 +548,11 @@ const MainPortal = () => {
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
               placeholder={
                 listening
+                
                   ? "Listening..."
                   : /* selectedMedium === "Tamil"
                     ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..." */
-                    placeholderText || "Type here..."
+                    mode === "grammar" ? "Type or speak a sentence to correct..." : placeholderText
               }
               className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
             />
@@ -562,50 +571,59 @@ const MainPortal = () => {
         </div>
 
         {/* AI RESPONSE AREA */}
+        {/* AI RESPONSE AREA */}
         {response && (
-          <div className="mt-8 bg-white p-8 rounded-xl shadow-md border border-slate-100">
-            <div className="flex justify-between items-center mb-4 border-b pb-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                {mode === "activity"
-                  ? "🎨 Activity Plan"
-                  : mode === "exam"
-                    ? "📝 Exam Prep"
-                    : "AI Response"}
-              </h3>
-              <div className="flex gap-2">
-                {mode === "activity" && (
-                  <button
-                    onClick={handleDownloadPDF}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
-                  >
-                    <Download size={18} /> PDF
-                  </button>
-                )}
-                {mode !== "exam" && (
-                  <button
-                    onClick={
-                      isSpeaking ? stopSpeaking : () => speakText(response)
-                    }
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition ${isSpeaking ? "bg-red-100 text-red-600" : "bg-cyan-50 text-cyan-700 hover:bg-cyan-100"}`}
-                  >
-                    {isSpeaking ? (
-                      <StopCircle size={18} />
-                    ) : (
-                      <Volume2 size={18} />
-                    )}
-                    {isSpeaking ? "Stop" : "Read"}
-                  </button>
-                )}
+          <div className="mt-8">
+            {/* NEW: GRAMMAR COACH DASHBOARD */}
+            {mode === "grammar" && typeof response === "object" ? (
+              <div className="space-y-6">
+                {/* 1. Score Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white p-6 rounded-2xl border-2 border-cyan-500 shadow-sm text-center">
+                    <div className="text-4xl font-black text-cyan-600">{response?.fluencyScore}%</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Fluency Score</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
+                    <div className="text-2xl font-bold text-slate-700">{response?.analysis?.accuracy}/100</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Accuracy</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
+                    <div className="text-2xl font-bold text-slate-700">{response?.analysis?.vocabulary}/100</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Vocabulary</div>
+                  </div>
+                </div>
+
+                {/* 2. Detailed Feedback Card */}
+                <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
+                  <div className="mb-6">
+                    <h4 className="text-xs font-bold text-cyan-600 uppercase mb-2">Correct English</h4>
+                    <p className="text-xl font-medium text-slate-800 border-l-4 border-cyan-500 pl-4 bg-cyan-50/30 py-3 rounded-r-lg">
+                      {response?.correctedEnglish}
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
+                      <h4 className="text-xs font-bold text-orange-600 uppercase mb-2">விளக்கம் (Explanation)</h4>
+                      <p className="text-slate-700">{response?.tamilExplanation}</p>
+                    </div>
+                    <div className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100">
+                      <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2">English Explanation (ஆங்கில விளக்கம் )</h4>
+                      <p className="text-slate-700 italic">{response?.englishExplanation}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div
-              ref={responseRef}
-              className="prose prose-cyan max-w-none text-slate-700 p-4 bg-white prose-pre:whitespace-pre-wrap break-words"
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {displayedResponse}
-              </ReactMarkdown>
-            </div>
+            ) : (
+              /* OLD: REGULAR TEXT RESPONSE (Learn, Activity, Exam) */
+              <div className="bg-white p-8 rounded-xl shadow-md border border-slate-100">
+                <div ref={responseRef} className="prose prose-cyan max-w-none text-slate-700">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {displayedResponse}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
