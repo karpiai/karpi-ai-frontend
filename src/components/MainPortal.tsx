@@ -115,6 +115,7 @@ const MainPortal = () => {
     listening,
     resetTranscript,
     browserSupportsSpeechRecognition,
+    isMicrophoneAvailable, // to check microphone available
   } = useSpeechRecognition();
 
   useEffect(() => {
@@ -231,6 +232,21 @@ const MainPortal = () => {
   }, [response]);
 
   const toggleListening = () => {
+    if (!browserSupportsSpeechRecognition) {
+      alert(
+        "Your browser does not support speech recognition. Please use Google Chrome.",
+      );
+      return;
+    }
+
+    if (!isMicrophoneAvailable) {
+      // This tells you if the browser has blocked access
+      alert(
+        "Microphone access is blocked. Please click the lock icon in your browser's address bar and allow microphone permissions.",
+      );
+      return;
+    }
+
     if (listening) {
       SpeechRecognition.stopListening();
     } else {
@@ -293,15 +309,15 @@ const MainPortal = () => {
 
       if (!res.ok) throw new Error("Server Error");
       const data = await res.json();
-      
+
       // If we are in grammar mode, we save the object directly.
       // Otherwise, we keep the string for streaming.
       setResponse(data.answer);
-      
+
       if (mode !== "grammar") {
         setDisplayedResponse(data.answer);
       }
-      
+
       if (autoRead) speakText(data.answer);
     } catch (err) {
       setError("⚠️ Connection error. Please ensure the backend is running.");
@@ -548,11 +564,12 @@ const MainPortal = () => {
               onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
               placeholder={
                 listening
-                
                   ? "Listening..."
                   : /* selectedMedium === "Tamil"
                     ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..." */
-                    mode === "grammar" ? "Type or speak a sentence to correct..." : placeholderText
+                    mode === "grammar"
+                    ? "Type or speak a sentence to correct..."
+                    : placeholderText
               }
               className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
             />
@@ -580,23 +597,37 @@ const MainPortal = () => {
                 {/* 1. Score Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white p-6 rounded-2xl border-2 border-cyan-500 shadow-sm text-center">
-                    <div className="text-4xl font-black text-cyan-600">{response?.fluencyScore}%</div>
-                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Fluency Score</div>
+                    <div className="text-4xl font-black text-cyan-600">
+                      {response?.fluencyScore}%
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Fluency Score
+                    </div>
                   </div>
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-                    <div className="text-2xl font-bold text-slate-700">{response?.analysis?.accuracy}/100</div>
-                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Accuracy</div>
+                    <div className="text-2xl font-bold text-slate-700">
+                      {response?.analysis?.accuracy}/100
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Accuracy
+                    </div>
                   </div>
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-                    <div className="text-2xl font-bold text-slate-700">{response?.analysis?.vocabulary}/100</div>
-                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">Vocabulary</div>
+                    <div className="text-2xl font-bold text-slate-700">
+                      {response?.analysis?.vocabulary}/100
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Vocabulary
+                    </div>
                   </div>
                 </div>
 
                 {/* 2. Detailed Feedback Card */}
                 <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
                   <div className="mb-6">
-                    <h4 className="text-xs font-bold text-cyan-600 uppercase mb-2">Correct English</h4>
+                    <h4 className="text-xs font-bold text-cyan-600 uppercase mb-2">
+                      Correct English
+                    </h4>
                     <p className="text-xl font-medium text-slate-800 border-l-4 border-cyan-500 pl-4 bg-cyan-50/30 py-3 rounded-r-lg">
                       {response?.correctedEnglish}
                     </p>
@@ -604,12 +635,20 @@ const MainPortal = () => {
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
-                      <h4 className="text-xs font-bold text-orange-600 uppercase mb-2">விளக்கம் (Explanation)</h4>
-                      <p className="text-slate-700">{response?.tamilExplanation}</p>
+                      <h4 className="text-xs font-bold text-orange-600 uppercase mb-2">
+                        விளக்கம் (Explanation)
+                      </h4>
+                      <p className="text-slate-700">
+                        {response?.tamilExplanation}
+                      </p>
                     </div>
                     <div className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100">
-                      <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2">English Explanation (ஆங்கில விளக்கம் )</h4>
-                      <p className="text-slate-700 italic">{response?.englishExplanation}</p>
+                      <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2">
+                        English Explanation (ஆங்கில விளக்கம் )
+                      </h4>
+                      <p className="text-slate-700 italic">
+                        {response?.englishExplanation}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -617,7 +656,10 @@ const MainPortal = () => {
             ) : (
               /* OLD: REGULAR TEXT RESPONSE (Learn, Activity, Exam) */
               <div className="bg-white p-8 rounded-xl shadow-md border border-slate-100">
-                <div ref={responseRef} className="prose prose-cyan max-w-none text-slate-700">
+                <div
+                  ref={responseRef}
+                  className="prose prose-cyan max-w-none text-slate-700"
+                >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {displayedResponse}
                   </ReactMarkdown>
