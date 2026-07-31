@@ -231,7 +231,7 @@ const MainPortal = () => {
     return () => clearInterval(intervalId);
   }, [response]);
 
-  const toggleListening = () => {
+  /* const toggleListening = () => {
     if (!browserSupportsSpeechRecognition) {
       alert(
         "Your browser does not support speech recognition. Please use Google Chrome.",
@@ -256,6 +256,46 @@ const MainPortal = () => {
         continuous: true,
         language: inputLang,
       });
+    }
+  }; */
+
+  const toggleListening = async () => {
+    console.log("--- MICROPHONE DEBUG START ---");
+    console.log("1. Browser Supported?", browserSupportsSpeechRecognition);
+    console.log("2. Is Mic Available?", isMicrophoneAvailable);
+    console.log("3. Currently Listening?", listening);
+
+    if (!browserSupportsSpeechRecognition) {
+      alert(
+        "Your browser does not support speech recognition. Please use Google Chrome.",
+      );
+      return;
+    }
+
+    if (!isMicrophoneAvailable) {
+      alert(
+        "Microphone access is blocked. Please check your browser settings.",
+      );
+      return;
+    }
+
+    if (listening) {
+      console.log("4. Stopping listening...");
+      SpeechRecognition.stopListening();
+    } else {
+      console.log("4. Attempting to start listening...");
+      resetTranscript();
+      setAutoRead(true);
+
+      try {
+        await SpeechRecognition.startListening({
+          continuous: true,
+          language: inputLang,
+        });
+        console.log("5. Start listening command executed!");
+      } catch (err) {
+        console.error("🚨 ERROR STARTING MIC:", err);
+      }
     }
   };
 
