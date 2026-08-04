@@ -282,16 +282,15 @@ const MainPortal = () => {
     if (listening) {
       console.log("4. Stopping listening...");
       console.log("🛑 Hard stopping microphone...");
-      // 👇 CHANGE THIS LINE: Use abortListening() instead of stopListening()
-      SpeechRecognition.abortListening()
+      SpeechRecognition.abortListening();
     } else {
       console.log("4. Attempting to start listening...");
       resetTranscript();
       setAutoRead(true);
 
       try {
+        // 👇 CHANGE THIS BLOCK: Remove continuous: true
         await SpeechRecognition.startListening({
-          continuous: true,
           language: inputLang,
         });
         console.log("5. Start listening command executed!");
