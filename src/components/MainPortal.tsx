@@ -281,7 +281,9 @@ const MainPortal = () => {
 
     if (listening) {
       console.log("4. Stopping listening...");
-      SpeechRecognition.stopListening();
+      console.log("🛑 Hard stopping microphone...");
+      // 👇 CHANGE THIS LINE: Use abortListening() instead of stopListening()
+      SpeechRecognition.abortListening()
     } else {
       console.log("4. Attempting to start listening...");
       resetTranscript();
