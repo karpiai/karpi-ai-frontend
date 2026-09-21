@@ -7,6 +7,7 @@ import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { TabView, TabPanel } from 'primereact/tabview';
 import karpiLogo from "../assets/logo.png"; 
+import { formatToIST } from '../util/formatToIst';
 
 // --- UPDATED: Added program and medium ---
 interface StudentMetric {
@@ -200,7 +201,6 @@ const AdminDashboard: React.FC = () => {
 
             <Card className="shadow-lg rounded-xl overflow-hidden border-none p-0">
                 <TabView className="w-full">
-                    {/* --- TAB 1: High-Level Metrics (Added Program and Medium) --- */}
                     <TabPanel header="Student Metrics" leftIcon="pi pi-chart-bar mr-2">
                         <DataTable value={metrics} paginator rows={10} rowsPerPageOptions={[10, 25, 50]} dataKey="rollNumber" emptyMessage="No student activity found." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '60rem' }}>
                             <Column field="rollNumber" header="Roll Number" sortable style={{ width: '12%' }}></Column>
@@ -213,10 +213,10 @@ const AdminDashboard: React.FC = () => {
                         </DataTable>
                     </TabPanel>
 
-                    {/* --- TAB 2: Detailed Audit Trail (Added Program) --- */}
                     <TabPanel header="Detailed Audit Log" leftIcon="pi pi-list mr-2">
                         <DataTable value={logs} paginator rows={10} rowsPerPageOptions={[10, 50, 100]} dataKey="id" emptyMessage="No queries logged yet." className="p-datatable-sm w-full" stripedRows removableSort tableStyle={{ minWidth: '75rem' }}>
-                            <Column field="createdAt" header="Timestamp" sortable style={{ width: '10%' }}></Column>
+                            {/* 👇 UPDATED: Added the body template to apply the formatToIST function */}
+                            <Column field="createdAt" header="Timestamp" sortable style={{ width: '10%' }} body={(rowData) => formatToIST(rowData.createdAt)}></Column>
                             <Column field="rollNumber" header="Roll No." sortable style={{ width: '8%' }}></Column>
                             <Column field="studentName" header="Name" sortable style={{ width: '12%' }}></Column>
                             <Column field="program" header="Program" sortable style={{ width: '8%' }}></Column>
