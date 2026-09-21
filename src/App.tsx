@@ -4,6 +4,7 @@ import Registration from "./components/Registration";
 import MainPortal from "./components/MainPortal";
 import AdminDashboard from "./components/AdminDashboard";
 import type { JSX } from "react";
+import AdminDashboardV2 from "./components/AdminDashboardV2";
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { student } = useAuth();
@@ -52,7 +53,7 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminDashboardV2 />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
