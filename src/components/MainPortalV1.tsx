@@ -22,7 +22,6 @@ import {
   School,
   LogOut,
   ListTree,
-  Presentation, // 👈 IMPORTED NEW ICON
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -36,23 +35,14 @@ import {
 import { SYLLABUS_MAP } from "../util/syllabusData";
 import { DEFAULT_PHRASES, SUBJECT_PHRASES } from "../util/phrases";
 
-// 👈 IMPORTED YOUR NEW COMPONENT
-import LectureMode from "./LectureMode";
-import { LECTURE_SYLLABUS_MAP } from "../util/lectureModeSyllabusData";
-
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 const MainPortal = () => {
   const { student, logout } = useAuth();
-
-  // 👈 ADDED "lecture" TO MODE STATE
-  const [mode, setMode] = useState<
-    "learn" | "exam" | "activity" | "grammar" | "lecture"
-  >("learn");
-
-  // 👈 NEW STATE FOR LECTURE MODE
-  const [lectureTopic, setLectureTopic] = useState<string | null>(null);
+  const [mode, setMode] = useState<"learn" | "exam" | "activity" | "grammar">(
+    "learn",
+  );
 
   const [selectedMedium, setSelectedMedium] = useState<"English" | "Tamil">(
     (student?.medium as "English" | "Tamil") || "English",
@@ -78,6 +68,7 @@ const MainPortal = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // State for the Syllabus Accordion (Defaults to Unit 1 open)
   const [expandedUnit, setExpandedUnit] = useState<number | null>(1);
 
   useEffect(() => {
@@ -124,7 +115,7 @@ const MainPortal = () => {
     listening,
     resetTranscript,
     browserSupportsSpeechRecognition,
-    isMicrophoneAvailable,
+    isMicrophoneAvailable, // to check microphone available
   } = useSpeechRecognition();
 
   useEffect(() => {
@@ -148,10 +139,14 @@ const MainPortal = () => {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
 
+  // ==========================================
+  // 🪄 EFFECT 1: DYNAMIC ANIMATED PLACEHOLDER
+  // ==========================================
   const [placeholderText, setPlaceholderText] = useState("");
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 1. Pull phrases dynamically from phrases.ts based on the active UUID
   const phrases = useMemo(() => {
     const subjectData = SUBJECT_PHRASES[selectedSubject];
 
@@ -164,17 +159,20 @@ const MainPortal = () => {
       }
     }
 
+    // Fallback if the subject UUID isn't in phrases.ts yet
     return selectedMedium === "Tamil"
       ? DEFAULT_PHRASES.Tamil
       : DEFAULT_PHRASES.English;
   }, [selectedSubject, selectedMedium]);
 
+  // 2. Reset the typing animation cleanly when the subject or language changes
   useEffect(() => {
     setPlaceholderText("");
     setCurrentPhraseIndex(0);
     setIsDeleting(false);
   }, [phrases]);
 
+  // 3. The actual typing effect
   useEffect(() => {
     if (!phrases || phrases.length === 0) return;
 
@@ -188,11 +186,14 @@ const MainPortal = () => {
 
     const timeout = setTimeout(() => {
       if (!isDeleting && placeholderText === currentPhrase) {
+        // Pause at the end of the sentence
         setTimeout(() => setIsDeleting(true), 2000);
       } else if (isDeleting && placeholderText === "") {
+        // Move to the next phrase
         setIsDeleting(false);
         setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length);
       } else {
+        // Type or delete characters
         const nextText = isDeleting
           ? currentPhrase.substring(0, placeholderText.length - 1)
           : currentPhrase.substring(0, placeholderText.length + 1);
@@ -203,6 +204,9 @@ const MainPortal = () => {
     return () => clearTimeout(timeout);
   }, [placeholderText, isDeleting, currentPhraseIndex, phrases]);
 
+  // ==========================================
+  // 🪄 EFFECT 2: AI STREAMING RESPONSE
+  // ==========================================
   const [displayedResponse, setDisplayedResponse] = useState("");
 
   useEffect(() => {
@@ -212,20 +216,55 @@ const MainPortal = () => {
     }
 
     let currentIndex = 0;
+    // We add 3 characters at a time to make it fast and smooth.
+    // You can change '3' to '1' for slower typing, or '5' for faster.
     const intervalId = setInterval(() => {
       setDisplayedResponse(response.slice(0, currentIndex));
       currentIndex += 3;
 
       if (currentIndex > response.length) {
         clearInterval(intervalId);
-        setDisplayedResponse(response);
+        setDisplayedResponse(response); // Ensure the final string is fully set
       }
-    }, 10);
+    }, 10); // Runs every 10 milliseconds
 
     return () => clearInterval(intervalId);
   }, [response]);
 
+  /* const toggleListening = () => {
+    if (!browserSupportsSpeechRecognition) {
+      alert(
+        "Your browser does not support speech recognition. Please use Google Chrome.",
+      );
+      return;
+    }
+
+    if (!isMicrophoneAvailable) {
+      // This tells you if the browser has blocked access
+      alert(
+        "Microphone access is blocked. Please click the lock icon in your browser's address bar and allow microphone permissions.",
+      );
+      return;
+    }
+
+    if (listening) {
+      SpeechRecognition.stopListening();
+    } else {
+      resetTranscript();
+      setAutoRead(true);
+      SpeechRecognition.startListening({
+        continuous: true,
+        language: inputLang,
+      });
+    }
+  }; */
+
   const toggleListening = async () => {
+    console.log("--- MICROPHONE DEBUG START ---");
+    console.log("1. Browser Supported?", browserSupportsSpeechRecognition);
+    console.log("2. Is Mic Available?", isMicrophoneAvailable);
+    console.log("3. Currently Listening?", listening);
+
     if (!browserSupportsSpeechRecognition) {
       alert(
         "Your browser does not support speech recognition. Please use Google Chrome.",
@@ -241,15 +280,20 @@ const MainPortal = () => {
     }
 
     if (listening) {
+      console.log("4. Stopping listening...");
+      console.log("🛑 Hard stopping microphone...");
       SpeechRecognition.abortListening();
     } else {
+      console.log("4. Attempting to start listening...");
       resetTranscript();
       setAutoRead(true);
 
       try {
+        // 👇 CHANGE THIS BLOCK: Remove continuous: true
         await SpeechRecognition.startListening({
           language: inputLang,
         });
+        console.log("5. Start listening command executed!");
       } catch (err) {
         console.error("🚨 ERROR STARTING MIC:", err);
       }
@@ -264,8 +308,7 @@ const MainPortal = () => {
     setInput("");
     stopSpeaking();
     setIsDropdownOpen(false);
-    setExpandedUnit(1);
-    setLectureTopic(null); // Reset lecture topic when subject changes
+    setExpandedUnit(1); // Reset accordion when changing subject
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -273,12 +316,13 @@ const MainPortal = () => {
     setAutoRead(false);
   };
 
+  // --- UPDATED: Accepts an optional string to bypass the typing completely ---
   const handleGenerate = async (overrideTopic?: string) => {
     const query = overrideTopic || input;
     if (!query.trim()) return;
     if (listening) SpeechRecognition.stopListening();
 
-    setInput(query);
+    setInput(query); // Update the search bar visually if they clicked a pill
     setLoading(true);
     setResponse("");
     setDisplayedResponse("");
@@ -307,6 +351,8 @@ const MainPortal = () => {
       if (!res.ok) throw new Error("Server Error");
       const data = await res.json();
 
+      // If we are in grammar mode, we save the object directly.
+      // Otherwise, we keep the string for streaming.
       setResponse(data.answer);
 
       if (mode !== "grammar") {
@@ -384,9 +430,8 @@ const MainPortal = () => {
   if (!browserSupportsSpeechRecognition)
     return <div>Browser not supported</div>;
 
-  // 👈 UPDATED: Added "lecture" to signature and reset lectureTopic
   const handleModeChange = (
-    newMode: "learn" | "exam" | "activity" | "grammar" | "lecture",
+    newMode: "learn" | "exam" | "activity" | "grammar",
   ) => {
     setMode(newMode);
     setResponse("");
@@ -394,18 +439,13 @@ const MainPortal = () => {
     setError("");
     setInput("");
     stopSpeaking();
-    setLectureTopic(null);
   };
 
-  // Make sure to import LECTURE_SYLLABUS_MAP at the top of your file!
-  const activeSyllabus =
-    mode === "lecture"
-      ? LECTURE_SYLLABUS_MAP[selectedSubject]
-      : SYLLABUS_MAP[selectedSubject];
+  const activeSyllabus = SYLLABUS_MAP[selectedSubject];
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* HEADER SECTION */}
+      {/* HEADER SECTION (Unchanged) */}
       <header className="bg-[#0b1f38] text-white p-5 shadow-lg sticky top-0 z-10 border-b border-cyan-900/50">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -442,7 +482,6 @@ const MainPortal = () => {
                       setInput("");
                       setResponse("");
                       setDisplayedResponse("");
-                      setLectureTopic(null); // 👈 ADD THIS LINE
                     }}
                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "English" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
                   >
@@ -454,7 +493,6 @@ const MainPortal = () => {
                       setInput("");
                       setResponse("");
                       setDisplayedResponse("");
-                      setLectureTopic(null); // 👈 ADD THIS LINE
                     }}
                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedMedium === "Tamil" ? "bg-cyan-500 text-white shadow-md" : "text-cyan-400 hover:text-white"}`}
                   >
@@ -506,7 +544,7 @@ const MainPortal = () => {
       </header>
 
       <main className="max-w-4xl mx-auto p-6 pb-24">
-        {/* MODE SELECTOR */}
+        {/* MODE SELECTOR (Unchanged) */}
         <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-6 overflow-x-auto">
           <button
             onClick={() => handleModeChange("learn")}
@@ -532,177 +570,144 @@ const MainPortal = () => {
           >
             <Languages size={20} /> Grammar Coach
           </button>
-          {/* 👈 NEW BUTTON: Lecture Mode */}
-          <button
-            onClick={() => handleModeChange("lecture")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold transition-all whitespace-nowrap px-4 ${mode === "lecture" ? "bg-cyan-50 text-cyan-700" : "text-slate-500 hover:bg-slate-50"}`}
-          >
-            <Presentation size={20} /> Lecture Mode
-          </button>
         </div>
 
-        {/* 👈 NEW LOGIC: Conditional UI Swap based on mode */}
-        {mode === "lecture" ? (
-          lectureTopic ? (
-            <div className="mb-8">
-              <button
-                onClick={() => setLectureTopic(null)}
-                className="mb-4 flex items-center gap-2 text-cyan-600 hover:text-cyan-800 font-bold"
+        {/* INPUT AREA */}
+        <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+          <label className="block text-sm font-medium text-slate-600 mb-2">
+            {mode === "learn"
+              ? `Ask a question in ${availableSubjects.find((s) => s.id === selectedSubject)?.name || "your subject"}:`
+              : mode === "activity"
+                ? "Generate Classroom Activity for:"
+                : mode === "grammar"
+                  ? "Enter sentence to correct:"
+                  : "Generate Questions for:"}
+            {mode !== "grammar" && (
+              <span
+                className={`ml-2 text-xs font-bold px-2 py-0.5 rounded ${selectedMedium === "Tamil" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
               >
-                <i className="pi pi-arrow-left"></i> Back to Syllabus
-              </button>
+                (Please type in {selectedMedium})
+              </span>
+            )}
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={toggleListening}
+              className={`p-3 rounded-lg transition-all ${listening ? "bg-red-100 text-red-600 animate-pulse border-2 border-red-500" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              title="Click to Speak"
+            >
+              {listening ? <MicOff size={24} /> : <Mic size={24} />}
+            </button>
+            <input
+              type="text"
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+              placeholder={
+                listening
+                  ? "Listening..."
+                  : /* selectedMedium === "Tamil"
+                    ? "உங்கள் கேள்வியை தமிழில் தட்டச்சு செய்யவும்..." */
+                    mode === "grammar"
+                    ? "Type or speak a sentence to correct..."
+                    : placeholderText
+              }
+              className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
+            />
+            <button
+              onClick={() => handleGenerate()}
+              disabled={loading}
+              className="px-6 py-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white rounded-lg font-bold disabled:opacity-50 transition-colors shadow-sm"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Send size={20} />
+              )}
+            </button>
+          </div>
+        </div>
 
-              <LectureMode
-                subjectId={selectedSubject}
-                topicName={lectureTopic}
-                medium={selectedMedium}
-              />
-            </div>
-          ) : (
-            <div className="bg-white p-10 rounded-xl shadow-md border border-cyan-100 text-center mb-8">
-              <Presentation size={48} className="mx-auto text-cyan-300 mb-4" />
-              <h2 className="text-xl font-bold text-slate-700">
-                Interactive Lecture Mode
-              </h2>
-              <p className="text-slate-500 mt-2">
-                Please select a topic from the Syllabus Explorer below to begin
-                the audio lecture.
-              </p>
-            </div>
-          )
-        ) : (
-          <>
-            {/* INPUT AREA */}
-            <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-              <label className="block text-sm font-medium text-slate-600 mb-2">
-                {mode === "learn"
-                  ? `Ask a question in ${availableSubjects.find((s) => s.id === selectedSubject)?.name || "your subject"}:`
-                  : mode === "activity"
-                    ? "Generate Classroom Activity for:"
-                    : mode === "grammar"
-                      ? "Enter sentence to correct:"
-                      : "Generate Questions for:"}
-                {mode !== "grammar" && (
-                  <span
-                    className={`ml-2 text-xs font-bold px-2 py-0.5 rounded ${selectedMedium === "Tamil" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
-                  >
-                    (Please type in {selectedMedium})
-                  </span>
-                )}
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={toggleListening}
-                  className={`p-3 rounded-lg transition-all ${listening ? "bg-red-100 text-red-600 animate-pulse border-2 border-red-500" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-                  title="Click to Speak"
-                >
-                  {listening ? <MicOff size={24} /> : <Mic size={24} />}
-                </button>
-                <input
-                  type="text"
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-                  placeholder={
-                    listening
-                      ? "Listening..."
-                      : mode === "grammar"
-                        ? "Type or speak a sentence to correct..."
-                        : placeholderText
-                  }
-                  className="flex-1 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#06b6d4]"
-                />
-                <button
-                  onClick={() => handleGenerate()}
-                  disabled={loading}
-                  className="px-6 py-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white rounded-lg font-bold disabled:opacity-50 transition-colors shadow-sm"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <Send size={20} />
-                  )}
-                </button>
+        {/* AI RESPONSE AREA */}
+        {/* AI RESPONSE AREA */}
+        {response && (
+          <div className="mt-8">
+            {/* NEW: GRAMMAR COACH DASHBOARD */}
+            {mode === "grammar" && typeof response === "object" ? (
+              <div className="space-y-6">
+                {/* 1. Score Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white p-6 rounded-2xl border-2 border-cyan-500 shadow-sm text-center">
+                    <div className="text-4xl font-black text-cyan-600">
+                      {response?.fluencyScore}%
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Fluency Score
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
+                    <div className="text-2xl font-bold text-slate-700">
+                      {response?.analysis?.accuracy}/100
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Accuracy
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
+                    <div className="text-2xl font-bold text-slate-700">
+                      {response?.analysis?.vocabulary}/100
+                    </div>
+                    <div className="text-xs font-bold text-slate-400 uppercase mt-1">
+                      Vocabulary
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Detailed Feedback Card */}
+                <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
+                  <div className="mb-6">
+                    <h4 className="text-xs font-bold text-cyan-600 uppercase mb-2">
+                      Correct English
+                    </h4>
+                    <p className="text-xl font-medium text-slate-800 border-l-4 border-cyan-500 pl-4 bg-cyan-50/30 py-3 rounded-r-lg">
+                      {response?.correctedEnglish}
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
+                      <h4 className="text-xs font-bold text-orange-600 uppercase mb-2">
+                        விளக்கம் (Explanation)
+                      </h4>
+                      <p className="text-slate-700">
+                        {response?.tamilExplanation}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100">
+                      <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2">
+                        English Explanation (ஆங்கில விளக்கம் )
+                      </h4>
+                      <p className="text-slate-700 italic">
+                        {response?.englishExplanation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* AI RESPONSE AREA */}
-            {response && (
-              <div className="mt-8">
-                {mode === "grammar" && typeof response === "object" ? (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-white p-6 rounded-2xl border-2 border-cyan-500 shadow-sm text-center">
-                        <div className="text-4xl font-black text-cyan-600">
-                          {response?.fluencyScore}%
-                        </div>
-                        <div className="text-xs font-bold text-slate-400 uppercase mt-1">
-                          Fluency Score
-                        </div>
-                      </div>
-                      <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-                        <div className="text-2xl font-bold text-slate-700">
-                          {response?.analysis?.accuracy}/100
-                        </div>
-                        <div className="text-xs font-bold text-slate-400 uppercase mt-1">
-                          Accuracy
-                        </div>
-                      </div>
-                      <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center">
-                        <div className="text-2xl font-bold text-slate-700">
-                          {response?.analysis?.vocabulary}/100
-                        </div>
-                        <div className="text-xs font-bold text-slate-400 uppercase mt-1">
-                          Vocabulary
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
-                      <div className="mb-6">
-                        <h4 className="text-xs font-bold text-cyan-600 uppercase mb-2">
-                          Correct English
-                        </h4>
-                        <p className="text-xl font-medium text-slate-800 border-l-4 border-cyan-500 pl-4 bg-cyan-50/30 py-3 rounded-r-lg">
-                          {response?.correctedEnglish}
-                        </p>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
-                          <h4 className="text-xs font-bold text-orange-600 uppercase mb-2">
-                            விளக்கம் (Explanation)
-                          </h4>
-                          <p className="text-slate-700">
-                            {response?.tamilExplanation}
-                          </p>
-                        </div>
-                        <div className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100">
-                          <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2">
-                            English Explanation (ஆங்கில விளக்கம் )
-                          </h4>
-                          <p className="text-slate-700 italic">
-                            {response?.englishExplanation}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white p-8 rounded-xl shadow-md border border-slate-100">
-                    <div
-                      ref={responseRef}
-                      className="prose prose-cyan max-w-none text-slate-700"
-                    >
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {displayedResponse}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
+            ) : (
+              /* OLD: REGULAR TEXT RESPONSE (Learn, Activity, Exam) */
+              <div className="bg-white p-8 rounded-xl shadow-md border border-slate-100">
+                <div
+                  ref={responseRef}
+                  className="prose prose-cyan max-w-none text-slate-700"
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {displayedResponse}
+                  </ReactMarkdown>
+                </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {error && (
@@ -711,7 +716,9 @@ const MainPortal = () => {
           </div>
         )}
 
-        {/* 📚 SYLLABUS EXPLORER */}
+        {/* ========================================================= */}
+        {/* 📚 NEW: SYLLABUS EXPLORER (Only shows if subject has a map) */}
+        {/* ========================================================= */}
         {mode !== "grammar" && activeSyllabus && (
           <div className="mt-4 bg-white rounded-xl shadow-sm border border-cyan-100 overflow-hidden">
             <div className="bg-cyan-50/50 p-4 border-b border-cyan-100 flex items-center gap-2 text-cyan-800">
@@ -758,15 +765,7 @@ const MainPortal = () => {
                       {unit.topics.map((topic: string, index: number) => (
                         <button
                           key={index}
-                          onClick={() => {
-                            // 👈 UPDATED LOGIC: Route clicks based on current mode
-                            if (mode === "lecture") {
-                              setLectureTopic(topic);
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            } else {
-                              handleGenerate(topic);
-                            }
-                          }}
+                          onClick={() => handleGenerate(topic)}
                           className="text-left text-xs font-medium px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:border-cyan-400 hover:text-cyan-700 hover:shadow-sm hover:-translate-y-0.5 transition-all"
                         >
                           {topic}
@@ -779,6 +778,7 @@ const MainPortal = () => {
             </div>
           </div>
         )}
+        {/* ========================================================= */}
       </main>
     </div>
   );

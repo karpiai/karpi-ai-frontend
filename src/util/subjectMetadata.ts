@@ -1,12 +1,14 @@
 // Define your UUIDs as constants so you don't make typos
 export const PROGRAMS = {
     BED: '6bf348ad-a999-4dbc-b006-643e0ac863b8',
+    BSC_BED: '7741d1d2-c9e7-4536-ad61-69ece8b31358',
 };
 
 export const DEPARTMENTS = {
     GENERAL: '33f8e401-5bdb-4e4f-835a-876aac8a6a60',
     CS: '2a29b998-81d6-458d-9a7d-dc1b2d1fa2d4',
     ENGLISH: 'your-english-dept-uuid-here',
+    GENERAL_BSC_BED: '1b8c0c1a-07a2-4495-b8e6-304848bbf321',
 };
 
 export const SUBJECT_METADATA = [
@@ -70,7 +72,7 @@ export const SUBJECT_METADATA = [
         medium: 'Tamil'
     },
     {
-        id: 'd1c8e5b7-9a3e-4c8f-9a2b-5f1e2c3d4e5f',
+        id: '34f2eefa-44c6-4282-839d-ba301eb38a2b',
         name: 'Language Across the Curriculum',
         programId: PROGRAMS.BED,
         departmentId: DEPARTMENTS.GENERAL,
